@@ -1,0 +1,11 @@
+blog.db*
+bin/
+tmp/
+frontend/node_modules/
+frontend/dist/
+.git/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

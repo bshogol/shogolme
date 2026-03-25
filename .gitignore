@@ -1,0 +1,22 @@
+# Build artifacts
+bin/
+frontend/dist/
+frontend/node_modules/
+
+# Database
+blog.db
+blog.db-wal
+blog.db-shm
+
+# Go
+blog
+tmp/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
