@@ -13,34 +13,34 @@ export function SeriesNav({ series, currentSlug }: Props) {
   const next = currentIdx < series.posts.length - 1 ? series.posts[currentIdx + 1] : null;
 
   return (
-    <div className="border border-terminal-border rounded-lg bg-terminal-surface p-4 mb-8">
-      <div className="flex items-center gap-2 mb-3">
-        <BookOpen size={14} className="text-terminal-accent" />
+    <div className="border border-df-border rounded-xl p-5 mb-10">
+      <div className="flex items-center gap-2 mb-4">
+        <BookOpen size={15} className="text-df-accent" />
         <Link
           to={`/series/${series.slug}`}
-          className="text-xs font-semibold text-terminal-accent hover:underline"
+          className="text-[14px] font-semibold text-df-accent hover:text-df-accent-hover transition-colors"
         >
           {series.name}
         </Link>
-        <span className="text-[10px] text-terminal-text-dim ml-auto">
+        <span className="text-[12px] text-df-text-dim ml-auto font-medium">
           Part {currentIdx + 1} of {series.posts.length}
         </span>
       </div>
 
-      <ul className="space-y-0.5 text-xs mb-3">
+      <ul className="space-y-1 text-[14px] mb-4">
         {series.posts.map((post, i) => (
           <li key={post.id}>
             {post.slug === currentSlug ? (
-              <span className="flex items-center gap-2 py-0.5 text-terminal-accent font-medium">
-                <span className="text-terminal-text-dim w-4 text-right">{i + 1}.</span>
+              <span className="flex items-center gap-2.5 py-1 text-df-accent font-medium">
+                <span className="text-df-text-dim w-5 text-right text-[13px]">{i + 1}.</span>
                 {post.title}
               </span>
             ) : (
               <Link
                 to={`/post/${post.slug}`}
-                className="flex items-center gap-2 py-0.5 text-terminal-text-dim hover:text-terminal-text transition-colors"
+                className="flex items-center gap-2.5 py-1 text-df-text-dim hover:text-df-text transition-colors"
               >
-                <span className="w-4 text-right">{i + 1}.</span>
+                <span className="w-5 text-right text-[13px]">{i + 1}.</span>
                 {post.title}
               </Link>
             )}
@@ -49,23 +49,23 @@ export function SeriesNav({ series, currentSlug }: Props) {
       </ul>
 
       {(prev || next) && (
-        <div className="flex justify-between pt-2 border-t border-terminal-border">
+        <div className="flex justify-between pt-3 border-t border-[#111]">
           {prev ? (
             <Link
               to={`/post/${prev.slug}`}
-              className="flex items-center gap-1 text-[11px] text-terminal-text-dim hover:text-terminal-accent transition-colors"
+              className="flex items-center gap-1 text-[13px] text-df-text-dim hover:text-df-accent transition-colors"
             >
-              <ChevronLeft size={12} />
+              <ChevronLeft size={13} />
               Previous
             </Link>
           ) : <span />}
           {next ? (
             <Link
               to={`/post/${next.slug}`}
-              className="flex items-center gap-1 text-[11px] text-terminal-text-dim hover:text-terminal-accent transition-colors"
+              className="flex items-center gap-1 text-[13px] text-df-text-dim hover:text-df-accent transition-colors"
             >
               Next
-              <ChevronRight size={12} />
+              <ChevronRight size={13} />
             </Link>
           ) : <span />}
         </div>

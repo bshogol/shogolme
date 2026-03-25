@@ -1,16 +1,20 @@
-# Design System: Monoblue
+# Design System: dFlux
 
-**Philosophy:** Terminal-inspired, content-first, monospace typography. Dark only. Clean, compact, no visual noise.
+**Philosophy:** Dark-first, content-focused, clean sans-serif typography. Minimal borders, subtle surfaces, bold blue accent.
 
 ## Foundations
 
 ### Typography
-- Primary font: `JetBrains Mono` (monospace everywhere — headings, body, UI)
-- Load from Google Fonts: `JetBrains Mono:ital,wght@0,300..800;1,300..800`
-- Base size: 14px / 0.875rem for body, smaller (11-12px) for UI chrome
+- **Primary font:** Inter (sans-serif everywhere)
+- **Monospace:** SF Mono, Fira Code, JetBrains Mono (code blocks only)
+- **Headings:** Bold, tight tracking (`tracking-[-0.03em]`), `#fafafa`
+- **Body:** 15px, `#a1a1a1`, `leading-relaxed`
+- **Captions:** 13px, `#666666`
 
-### Primary Color: `#0069ff`
-- Used for: header background, links, tags, active states, accents, focus rings
+### Primary Color: `#0069FF`
+- Hover: `#0055d4`
+- Dark: `#0050c8`
+- Used for: nav background, links, tags, buttons, section labels, focus rings
 - Text on primary: white
 
 ### Palette
@@ -18,53 +22,81 @@
 | Token | Value | Usage |
 |-------|-------|-------|
 | bg | `#000000` | Page background |
-| surface | `#000000` | Content panels (seamless with bg) |
-| border | `#1b2230` | Dividers, card borders |
-| text | `#c9d1d9` | Body text |
-| text-dim | `#6e7681` | Secondary text, metadata |
-| text-bright | `#e6edf3` | Headings, emphasis |
-| accent | `#0069ff` | Primary/links/interactive |
-| green | `#3fb950` | Success, terminal prompt `$` |
-| yellow | `#d29922` | Warnings |
-| red | `#f85149` | Errors, destructive |
-| purple | `#bc8cff` | Syntax: keywords |
-| cyan | `#39c5cf` | Syntax: builtins, inline code |
-| orange | `#d18616` | Syntax: numbers |
-| code-bg | `#161b22` | Code block background |
-| selection | `rgba(88, 166, 255, 0.3)` | Text selection |
+| surface | `#080808` | Alternate section bg |
+| surface-alt | `#0a0a0a` | Cards, panels |
+| border | `rgba(255,255,255,0.08)` | Dividers, card borders |
+| border-hover | `rgba(255,255,255,0.16)` | Hover state borders |
+| text | `#a1a1a1` | Body text |
+| text-dim | `#666666` | Labels, captions |
+| text-bright | `#fafafa` | Headings, emphasis |
+| text-muted | `#555555` | Tertiary info |
+| accent | `#0069FF` | Primary |
+| green | `#34d399` | Success |
+| yellow | `#fbbf24` | Warnings |
+| red | `#f85149` | Errors |
+| divider | `rgba(255,255,255,0.06)` | Section separators |
+
+### Syntax Highlighting
+
+| Token | Color | Usage |
+|-------|-------|-------|
+| keywords | `#d2a8ff` | `if`, `func`, `return` |
+| strings | `#a5d6ff` | String literals |
+| numbers | `#fbbf24` | Numeric values |
+| comments | `#555555` | Comments |
+| functions | `#79c0ff` | Function names |
+| builtins | `#79c0ff` | Built-in types |
 
 ## Layout
 
-- Max content width: `max-w-5xl` (1024px)
-- Centered on page with left/right borders (`border-x`)
-- Header: full-width `#0069ff` background, white text, sticky
-- Footer: minimal, single line, dimmed text
-- Spacing: compact — `py-8 px-4` for page content
+- **Nav:** Fixed top, `h-14`, solid `#0069FF` bg, full-width
+- **Content:** `max-w-4xl` to `max-w-6xl`, centered
+- **Section padding:** `py-24 sm:py-32`
+- **Card padding:** `p-5` to `p-8`
 
 ## Components
 
-### Header
-Solid `#0069ff` background. White text and icons. Navigation items are `white/70` default, `white` on hover/active with `bg-white/10` or `bg-white/20`.
+### Navigation
+- Solid `#0069FF` background, `fixed top-0 w-full z-50`
+- Logo: `text-[16px] font-bold text-white` with white circle icon
+- Links: `text-[15px] font-semibold text-white`, hover `text-white/80`
+- No borders, no backdrop blur
+
+### Buttons
+- Primary: `bg-[#0069FF] text-white rounded-full px-8 py-3 text-[15px] font-medium`
+- Secondary: `border border-white/[0.15] rounded-full px-8 py-3 text-[15px] text-white`
 
 ### Tags/Badges
-Small pills with `border border-{border}`, accent text color, hover to accent border. Format: `#tagname`.
-
-### Code Blocks
-Rounded corners (`rounded-md`), border, `code-bg` background. Language label top-left (uppercase, 10px). Copy button top-right (appears on hover). Syntax highlighting uses palette colors (purple for keywords, green for strings, orange for numbers, dim for comments).
+- `rounded-full`, `border border-white/[0.08]`, `text-[13px]`
+- No hash symbol, just the tag name
+- Hover: `border-white/[0.16]`
 
 ### Cards/Surfaces
-`bg-surface`, `border border-{border}`, `rounded-lg`, minimal padding.
+- `border border-white/[0.08] rounded-xl`
+- Hover: `border-white/[0.16] bg-white/[0.02]`
+- Background: transparent or `bg-white/[0.02]`
 
-### Interactive States
-Hover uses `bg-accent/10` for surfaces or `bg-white/10` on accent backgrounds. Active/current uses `bg-accent/20` or `bg-white/20`.
+### Code Blocks
+- `rounded-[10px]`, `border border-white/[0.08]`, `bg-white/[0.02]`
+- Language label: top-left, `text-[10px] uppercase tracking-wider`
+- Copy button: top-right, appears on hover
+- Font: monospace, `13px`, `line-height: 1.7`
 
-### Terminal Aesthetic Elements
-- Prompt indicators: `$` in green before command-like headers
-- Blinking cursor: `▊` with `animate-pulse`
-- Monospace everything — no sans-serif fonts anywhere
-- Index numbers: zero-padded (`00`, `01`, `02`)
+### Section Labels
+- `text-[13px] text-[#0069FF] font-medium tracking-widest uppercase`
+- Placed above section heading
 
-## Tech Stack (when building with React)
-- Tailwind CSS 4 with `@theme` directive for CSS custom properties
-- Colors defined as CSS variables (`--t-bg`, `--t-accent`, etc.) mapped to Tailwind via `--color-terminal-*`
+### Footer
+- `bg-white/[0.02]`, `border-t border-white/[0.06]`
+- Links: `text-[14px] text-[#666666] hover:text-[#a1a1a1]`
+
+## Interactive States
+- Hover on cards: `bg-white/[0.02] border-white/[0.16]`
+- Hover on nav items: `text-white/80` or `bg-white/[0.1]`
+- Active/selected: `text-[#0069FF]`
+
+## Tech Stack (React)
+- Tailwind CSS 4 with `@theme` directive
+- Colors as CSS custom properties mapped to `--color-df-*`
 - `clsx` + `tailwind-merge` for conditional classes
+- Inter loaded from Google Fonts

@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
 import { Layout } from './components/Layout';
 import { CommandPalette } from './components/CommandPalette';
 
@@ -22,26 +21,18 @@ const queryClient = new QueryClient({
 
 function PageFallback() {
   return (
-    <div className="px-4 py-8 text-terminal-text-dim text-sm animate-pulse">
-      <span className="text-terminal-yellow">⟳</span> Loading...
+    <div className="max-w-4xl mx-auto px-6 py-24 text-df-text-dim text-[15px] animate-pulse">
+      Loading...
     </div>
   );
 }
 
-function AnimatedRoutes() {
-  const location = useLocation();
-
+export default function App() {
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.15 }}
-      >
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
         <Suspense fallback={<PageFallback />}>
-          <Routes location={location}>
+          <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<PostList />} />
               <Route path="/post/:slug" element={<PostDetail />} />
@@ -51,16 +42,6 @@ function AnimatedRoutes() {
             </Route>
           </Routes>
         </Suspense>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-export default function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AnimatedRoutes />
         <CommandPalette />
       </BrowserRouter>
     </QueryClientProvider>

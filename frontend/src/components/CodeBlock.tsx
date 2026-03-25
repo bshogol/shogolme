@@ -22,16 +22,16 @@ export function CodeBlock({ className, children }: Props) {
   return (
     <div className="relative group">
       {lang && (
-        <span className="absolute top-0 left-3 px-2 py-0.5 text-[10px] uppercase tracking-wider text-terminal-text-dim bg-terminal-border/50 rounded-b font-semibold">
+        <span className="absolute top-0 left-4 px-2 py-0.5 text-[10px] uppercase tracking-wider text-df-text-dim bg-[#0a0a10] rounded-b font-medium">
           {lang}
         </span>
       )}
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded text-terminal-text-dim hover:text-terminal-text-bright hover:bg-terminal-border/50 opacity-0 group-hover:opacity-100 transition-all"
+        className="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-df-text-dim hover:text-df-text-bright hover:bg-[#0f0f18] opacity-0 group-hover:opacity-100 transition-colors"
         aria-label="Copy code"
       >
-        {copied ? <Check size={14} className="text-terminal-green" /> : <Copy size={14} />}
+        {copied ? <Check size={14} className="text-df-green" /> : <Copy size={14} />}
       </button>
       <pre ref={preRef} className={className}>
         {children}

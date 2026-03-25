@@ -14,68 +14,68 @@ export function SeriesDetail() {
 
   if (isLoading) {
     return (
-      <div className="px-4 py-8 max-w-3xl mx-auto text-terminal-text-dim text-sm animate-pulse">
-        <span className="text-terminal-yellow">⟳</span> Loading series...
+      <div className="max-w-4xl mx-auto px-6 py-24 text-df-text-dim text-[15px] animate-pulse">
+        Loading series...
       </div>
     );
   }
 
   if (error || !series) {
     return (
-      <div className="px-4 py-8 max-w-3xl mx-auto">
-        <div className="text-terminal-red text-sm border border-terminal-red/30 rounded px-3 py-2 bg-terminal-red/5">
-          <span className="font-semibold">error:</span> Series not found.
+      <div className="max-w-4xl mx-auto px-6 py-24">
+        <div className="text-df-red text-[15px] border border-df-border rounded-xl px-6 py-4">
+          Series not found.
         </div>
-        <Link to="/" className="text-xs text-terminal-accent mt-4 inline-block hover:underline">
-          ← back to posts
+        <Link to="/" className="text-[14px] text-df-accent mt-4 inline-block">
+          ← Back to posts
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-8 max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto px-6 py-24 sm:py-32">
       <Link
         to="/"
-        className="inline-flex items-center gap-1.5 text-xs text-terminal-text-dim hover:text-terminal-accent transition-colors mb-6"
+        className="inline-flex items-center gap-1.5 text-[14px] text-df-accent hover:text-df-accent-hover transition-colors mb-8"
       >
-        <ArrowLeft size={12} />
-        cd ..
+        <ArrowLeft size={14} />
+        Back
       </Link>
 
-      <div className="flex items-center gap-2 mb-2">
-        <BookOpen size={18} className="text-terminal-accent" />
-        <h1 className="text-xl font-semibold text-terminal-text-bright">{series.name}</h1>
+      <span className="text-[13px] text-df-accent font-medium tracking-widest uppercase mb-4 block">
+        Series
+      </span>
+
+      <div className="flex items-center gap-3 mb-3">
+        <BookOpen size={22} className="text-df-accent" />
+        <h1 className="text-[clamp(2rem,5vw,2.75rem)] font-bold text-df-text-bright tracking-[-0.03em]">{series.name}</h1>
       </div>
 
       {series.description && (
-        <p className="text-sm text-terminal-text-dim mb-6">{series.description}</p>
+        <p className="text-[17px] text-df-text leading-relaxed mb-8 max-w-2xl">{series.description}</p>
       )}
 
-      <div className="text-xs text-terminal-text-dim mb-4">
+      <p className="text-[13px] text-df-text-dim mb-6">
         {series.posts.length} part{series.posts.length !== 1 ? 's' : ''}
-      </div>
+      </p>
 
       <div className="space-y-1">
         {series.posts.map((post) => (
           <Link
             key={post.id}
             to={`/post/${post.slug}`}
-            className="group flex items-center gap-3 px-3 py-3 -mx-3 rounded hover:bg-terminal-surface border border-transparent hover:border-terminal-border transition-colors"
+            className="group flex items-center gap-4 px-5 py-4 -mx-5 rounded-xl border border-transparent hover:border-df-border hover:bg-[#050508] transition-colors"
           >
-            <span className="text-terminal-text-dim text-xs w-6 text-right shrink-0">
+            <span className="text-df-text-dim text-[14px] w-6 text-right shrink-0 font-medium">
               {post.series_order}.
             </span>
-            <span className="text-sm text-terminal-text-bright group-hover:text-terminal-accent transition-colors truncate flex-1">
+            <span className="text-[17px] font-bold text-df-text-bright group-hover:text-df-accent transition-colors truncate flex-1">
               {post.title}
             </span>
-            <ChevronRight size={14} className="text-terminal-text-dim group-hover:text-terminal-accent transition-colors shrink-0" />
+            <ChevronRight size={16} className="text-df-text-dim group-hover:text-df-accent transition-colors shrink-0" />
           </Link>
         ))}
-      </div>
-
-      <div className="mt-8 text-xs text-terminal-text-dim">
-        <span className="text-terminal-green">$</span> <span className="animate-pulse">▊</span>
       </div>
     </div>
   );

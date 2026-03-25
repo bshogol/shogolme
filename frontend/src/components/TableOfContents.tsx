@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { List } from 'lucide-react';
 import { cn } from '../lib/cn';
 import type { TOCItem } from '../types/blog';
 
@@ -35,25 +34,23 @@ export function TableOfContents({ items }: Props) {
   if (items.length === 0) return null;
 
   return (
-    <nav className="sticky top-16">
-      <div className="flex items-center gap-2 text-xs text-terminal-text-dim mb-3 uppercase tracking-wider">
-        <List size={12} />
-        <span>On this page</span>
+    <nav className="sticky top-20">
+      <div className="text-[12px] text-df-text-dim mb-4 uppercase tracking-wider font-medium">
+        On this page
       </div>
-      <ul className="space-y-0.5 text-xs border-l border-terminal-border">
+      <ul className="space-y-0.5 text-[13px] border-l border-[#111]">
         {items.map((item) => (
           <li key={item.id}>
             <a
               href={`#${item.id}`}
               className={cn(
                 'block py-1 transition-colors border-l -ml-px',
-                item.level === 1 && 'pl-3',
-                item.level === 2 && 'pl-3',
+                item.level <= 2 && 'pl-3',
                 item.level === 3 && 'pl-6',
                 item.level === 4 && 'pl-9',
                 activeId === item.id
-                  ? 'text-terminal-accent border-terminal-accent'
-                  : 'text-terminal-text-dim hover:text-terminal-text border-transparent'
+                  ? 'text-df-accent border-df-accent'
+                  : 'text-df-text-dim hover:text-df-text border-transparent'
               )}
             >
               {item.text}

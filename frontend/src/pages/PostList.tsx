@@ -1,8 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Calendar, ChevronRight, Tag, FileText, Eye, Hash, BookOpen } from 'lucide-react';
+import { Calendar, ChevronRight, Eye, BookOpen } from 'lucide-react';
 import { fetchPosts, fetchPost, fetchTagsWithCount } from '../api/posts';
-import { cn } from '../lib/cn';
 
 export function PostList() {
   const [searchParams] = useSearchParams();
@@ -30,99 +29,92 @@ export function PostList() {
   const popularTags = tags?.slice(0, 8) ?? [];
 
   return (
-    <div className="px-4 py-8 max-w-3xl mx-auto">
-      {/* Terminal prompt header */}
-      <div className="mb-6">
-        <div className="text-sm text-terminal-text-dim mb-1">
-          <span className="text-terminal-green">$</span> ls {tag ? `-t ${tag}` : '-la'} ./posts/
-        </div>
-        <h1 className="text-xl font-semibold text-terminal-text-bright">
-          {tag ? (
-            <>Posts tagged <span className="text-terminal-accent">#{tag}</span></>
-          ) : (
-            'All Posts'
-          )}
-        </h1>
-        {tag && (
-          <Link to="/" className="text-xs text-terminal-text-dim hover:text-terminal-accent transition-colors mt-1 inline-block">
-            ← clear filter
-          </Link>
-        )}
+    <div className="max-w-4xl mx-auto px-6 py-24 sm:py-32">
+      {/* Section label */}
+      <div className="mb-4">
+        <span className="text-[13px] text-df-accent font-medium tracking-widest uppercase">
+          {tag ? `Tagged: ${tag}` : 'Latest Posts'}
+        </span>
       </div>
+
+      <h1 className="text-[clamp(2.25rem,5vw,3.5rem)] font-bold text-df-text-bright tracking-[-0.03em] leading-[1.1] mb-6">
+        {tag ? (
+          <>Posts tagged <span className="text-df-accent">#{tag}</span></>
+        ) : (
+          'All Posts'
+        )}
+      </h1>
+
+      {tag && (
+        <Link to="/" className="text-[14px] text-df-accent hover:text-df-accent-hover transition-colors mb-8 inline-block">
+          ← Clear filter
+        </Link>
+      )}
 
       {/* Popular tags */}
       {!tag && popularTags.length > 0 && (
-        <div className="mb-6 flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-terminal-text-dim mr-1">popular:</span>
+        <div className="mb-10 flex flex-wrap items-center gap-2">
           {popularTags.map((t) => (
             <Link
               key={t.name}
               to={`/?tag=${t.name}`}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-terminal-border text-terminal-accent hover:border-terminal-accent hover:text-terminal-accent transition-colors"
+              className="px-3 py-1 text-[13px] rounded-full border border-df-border text-df-text hover:border-df-border-hover hover:text-df-text-bright transition-colors"
             >
-              <Hash size={10} />
               {t.name}
-              <span className="text-terminal-text-dim">({t.count})</span>
+              <span className="text-df-text-dim ml-1">({t.count})</span>
             </Link>
           ))}
         </div>
       )}
 
       {isLoading && (
-        <div className="text-terminal-text-dim text-sm animate-pulse">
-          <span className="text-terminal-yellow">⟳</span> Loading posts...
+        <div className="text-df-text-dim text-[15px] animate-pulse py-8">
+          Loading posts...
         </div>
       )}
 
       {error && (
-        <div className="text-terminal-red text-sm border border-terminal-red/30 rounded px-3 py-2 bg-terminal-red/5">
-          <span className="font-semibold">error:</span> Failed to fetch posts. Is the backend running?
+        <div className="text-df-red text-[15px] border border-df-border rounded-xl px-6 py-4 bg-[#050508]">
+          Failed to fetch posts. Is the backend running?
         </div>
       )}
 
       {posts && posts.length === 0 && (
-        <div className="text-terminal-text-dim text-sm">
-          <span className="text-terminal-yellow">!</span> No posts found.
+        <div className="text-df-text-dim text-[15px] py-8">
+          No posts found.
         </div>
       )}
 
       {posts && posts.length > 0 && (
         <div className="space-y-1">
-          {posts.map((post, i) => (
+          {posts.map((post) => (
             <Link
               key={post.id}
               to={`/post/${post.slug}`}
               onMouseEnter={() => prefetch(post.slug)}
-              className={cn(
-                'group block px-3 py-3 -mx-3 rounded transition-colors',
-                'hover:bg-terminal-surface border border-transparent hover:border-terminal-border'
-              )}
+              className="group block px-5 py-5 -mx-5 rounded-xl border border-transparent hover:border-df-border hover:bg-[#050508] transition-colors"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-terminal-text-dim text-xs font-mono">
-                      {String(i).padStart(2, '0')}
-                    </span>
-                    <FileText size={13} className="text-terminal-text-dim shrink-0" />
-                    <span className="text-sm font-medium text-terminal-text-bright group-hover:text-terminal-accent transition-colors truncate">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <h2 className="text-[17px] font-bold text-df-text-bright group-hover:text-df-accent transition-colors truncate">
                       {post.title}
-                    </span>
+                    </h2>
                     {post.series_id && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] text-terminal-accent shrink-0">
-                        <BookOpen size={10} />
+                      <span className="inline-flex items-center gap-0.5 text-[11px] text-df-accent shrink-0">
+                        <BookOpen size={11} />
                         pt.{post.series_order}
                       </span>
                     )}
                   </div>
                   {post.excerpt && (
-                    <p className="text-xs text-terminal-text-dim ml-9 line-clamp-1">
+                    <p className="text-[15px] text-df-text line-clamp-1 mb-2">
                       {post.excerpt}
                     </p>
                   )}
-                  <div className="flex items-center gap-3 mt-1.5 ml-9">
-                    <span className="flex items-center gap-1 text-xs text-terminal-text-dim">
-                      <Calendar size={11} />
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1.5 text-[13px] text-df-text-dim">
+                      <Calendar size={12} />
                       {new Date(post.created_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
@@ -130,34 +122,28 @@ export function PostList() {
                       })}
                     </span>
                     {post.view_count > 0 && (
-                      <span className="flex items-center gap-1 text-xs text-terminal-text-dim">
-                        <Eye size={11} />
+                      <span className="flex items-center gap-1 text-[13px] text-df-text-dim">
+                        <Eye size={12} />
                         {post.view_count}
                       </span>
                     )}
                     {post.tags.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Tag size={11} className="text-terminal-text-dim" />
+                      <div className="flex items-center gap-1.5">
                         {post.tags.map((t) => (
-                          <span key={t} className="text-xs text-terminal-accent">
-                            {t}
+                          <span key={t} className="text-[12px] text-df-text-dim">
+                            #{t}
                           </span>
                         ))}
                       </div>
                     )}
                   </div>
                 </div>
-                <ChevronRight size={14} className="text-terminal-text-dim group-hover:text-terminal-accent transition-colors mt-1 shrink-0" />
+                <ChevronRight size={16} className="text-df-text-dim group-hover:text-df-accent transition-colors mt-1.5 shrink-0" />
               </div>
             </Link>
           ))}
         </div>
       )}
-
-      {/* Bottom prompt */}
-      <div className="mt-8 text-xs text-terminal-text-dim">
-        <span className="text-terminal-green">$</span> <span className="animate-pulse">▊</span>
-      </div>
     </div>
   );
 }

@@ -24,7 +24,6 @@ export function CommandPalette() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 300);
     return () => clearTimeout(timer);
@@ -48,7 +47,6 @@ export function CommandPalette() {
     enabled: isOpen,
   });
 
-  // FTS search when query is long enough
   const { data: searchResults } = useQuery({
     queryKey: ['search', debouncedQuery],
     queryFn: () => searchPosts(debouncedQuery),
@@ -57,79 +55,72 @@ export function CommandPalette() {
 
   const isSearching = debouncedQuery.length >= 2;
 
-  // Build command items
   const items: CommandItem[] = [];
 
   if (isSearching && searchResults) {
-    // Show FTS search results
     for (const result of searchResults) {
       items.push({
         id: `search-${result.slug}`,
         label: result.title,
         sublabel: result.excerpt,
         snippet: result.snippet,
-        icon: <FileText size={14} />,
+        icon: <FileText size={15} />,
         action: () => { navigate(`/post/${result.slug}`); close(); },
       });
     }
   } else {
-    // Show browseable items
     items.push({
       id: 'home',
       label: 'Home',
       sublabel: 'Go to post list',
-      icon: <Home size={14} />,
+      icon: <Home size={15} />,
       action: () => { navigate('/'); close(); },
     });
     items.push({
       id: 'tags-page',
       label: 'Tags',
       sublabel: 'Browse all tags',
-      icon: <Tag size={14} />,
+      icon: <Tag size={15} />,
       action: () => { navigate('/tags'); close(); },
     });
 
-    // Series
     if (series) {
       for (const s of series) {
         items.push({
           id: `series-${s.slug}`,
           label: s.name,
           sublabel: s.description,
-          icon: <BookOpen size={14} />,
+          icon: <BookOpen size={15} />,
           action: () => { navigate(`/series/${s.slug}`); close(); },
         });
       }
     }
 
-    // Posts
     if (posts) {
       for (const post of posts) {
         items.push({
           id: `post-${post.slug}`,
           label: post.title,
           sublabel: post.excerpt,
-          icon: <FileText size={14} />,
+          icon: <FileText size={15} />,
           action: () => { navigate(`/post/${post.slug}`); close(); },
         });
       }
     }
 
-    // Tags
     if (tags) {
       for (const tag of tags) {
         items.push({
           id: `tag-${tag}`,
           label: `#${tag}`,
           sublabel: `Filter posts by ${tag}`,
-          icon: <Tag size={14} />,
+          icon: <Tag size={15} />,
           action: () => { navigate(`/?tag=${tag}`); close(); },
         });
       }
     }
   }
 
-  // Client-side filter for non-search mode
   const q = query.toLowerCase();
   const filtered = (!isSearching && q)
     ? items.filter(
@@ -139,7 +130,6 @@ export function CommandPalette() {
       )
     : items;
 
-  // Keyboard shortcuts
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -151,7 +141,6 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Focus input when opened
   useEffect(() => {
     if (isOpen) {
       setQuery('');
@@ -161,7 +150,6 @@ export function CommandPalette() {
     }
   }, [isOpen]);
 
-  // Reset selection on filter change
   useEffect(() => {
     setSelectedIndex(0);
   }, [query, searchResults]);
@@ -185,28 +173,25 @@ export function CommandPalette() {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] bg-black/60"
             onClick={close}
           />
 
-          {/* Palette */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            initial={{ opacity: 0, scale: 0.96, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            exit={{ opacity: 0, scale: 0.96, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="fixed top-[15%] left-1/2 -translate-x-1/2 z-[101] w-full max-w-lg"
+            className="fixed top-[15%] left-1/2 -translate-x-1/2 z-[101] w-full max-w-lg px-4"
           >
-            <div className="bg-terminal-surface border border-terminal-border rounded-lg shadow-2xl overflow-hidden font-mono">
-              {/* Search input */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-terminal-border">
-                <Search size={14} className="text-terminal-text-dim shrink-0" />
+            <div className="bg-[#0a0a0a] border border-[#1e1e32] rounded-xl shadow-2xl overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#111]">
+                <Search size={16} className="text-df-text-dim shrink-0" />
                 <input
                   ref={inputRef}
                   type="text"
@@ -214,17 +199,16 @@ export function CommandPalette() {
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Search posts, tags, pages..."
-                  className="flex-1 bg-transparent text-sm text-terminal-text-bright placeholder:text-terminal-text-dim outline-none"
+                  className="flex-1 bg-transparent text-[15px] text-df-text-bright placeholder:text-df-text-dim outline-none"
                 />
-                <kbd className="text-[10px] border border-terminal-border rounded px-1.5 py-0.5 text-terminal-text-dim">
+                <kbd className="text-[11px] border border-[#1e1e32] rounded px-1.5 py-0.5 text-df-text-dim">
                   esc
                 </kbd>
               </div>
 
-              {/* Results */}
-              <div className="max-h-72 overflow-y-auto py-1">
+              <div className="max-h-80 overflow-y-auto py-1">
                 {filtered.length === 0 && (
-                  <div className="px-4 py-6 text-center text-xs text-terminal-text-dim">
+                  <div className="px-4 py-8 text-center text-[14px] text-df-text-dim">
                     No results for "{query}"
                   </div>
                 )}
@@ -234,43 +218,42 @@ export function CommandPalette() {
                     onClick={item.action}
                     onMouseEnter={() => setSelectedIndex(i)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-4 py-2 text-left text-xs transition-colors',
+                      'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
                       i === selectedIndex
-                        ? 'bg-terminal-accent/10 text-terminal-accent'
-                        : 'text-terminal-text hover:bg-terminal-border/30'
+                        ? 'bg-[#0a0a10] text-df-accent'
+                        : 'text-df-text hover:bg-[#050508]'
                     )}
                   >
-                    <span className="shrink-0 text-terminal-text-dim">{item.icon}</span>
+                    <span className="shrink-0 text-df-text-dim">{item.icon}</span>
                     <span className="flex-1 min-w-0">
-                      <span className="block truncate font-medium">{item.label}</span>
+                      <span className="block truncate text-[14px] font-medium">{item.label}</span>
                       {item.snippet ? (
                         <span
-                          className="block text-[11px] text-terminal-text-dim mt-0.5 line-clamp-2"
+                          className="block text-[13px] text-df-text-dim mt-0.5 line-clamp-2"
                           dangerouslySetInnerHTML={{ __html: item.snippet }}
                         />
                       ) : item.sublabel ? (
-                        <span className="block truncate text-[11px] text-terminal-text-dim mt-0.5">
+                        <span className="block truncate text-[13px] text-df-text-dim mt-0.5">
                           {item.sublabel}
                         </span>
                       ) : null}
                     </span>
                     {i === selectedIndex && (
-                      <ArrowRight size={12} className="shrink-0 text-terminal-accent" />
+                      <ArrowRight size={13} className="shrink-0 text-df-accent" />
                     )}
                   </button>
                 ))}
               </div>
 
-              {/* Footer hint */}
-              <div className="px-4 py-2 border-t border-terminal-border flex items-center gap-3 text-[10px] text-terminal-text-dim">
+              <div className="px-4 py-2.5 border-t border-[#111] flex items-center gap-4 text-[11px] text-df-text-dim">
                 <span className="flex items-center gap-1">
-                  <kbd className="border border-terminal-border rounded px-1 py-0.5">↑↓</kbd> navigate
+                  <kbd className="border border-[#1e1e32] rounded px-1 py-0.5">↑↓</kbd> navigate
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="border border-terminal-border rounded px-1 py-0.5">↵</kbd> select
+                  <kbd className="border border-[#1e1e32] rounded px-1 py-0.5">↵</kbd> select
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="border border-terminal-border rounded px-1 py-0.5">esc</kbd> close
+                  <kbd className="border border-[#1e1e32] rounded px-1 py-0.5">esc</kbd> close
                 </span>
               </div>
             </div>

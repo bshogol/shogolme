@@ -3,30 +3,18 @@ import { Home } from 'lucide-react';
 
 export function NotFound() {
   return (
-    <div className="px-4 py-16 max-w-xl mx-auto text-center">
-      <div className="text-6xl font-bold text-terminal-text-bright mb-2 font-mono">404</div>
-      <div className="text-sm text-terminal-text-dim mb-6 font-mono">
-        <span className="text-terminal-red">bash:</span> page not found: <span className="text-terminal-text-bright">$PATH</span>
-      </div>
-
-      <div className="border border-terminal-border rounded-lg bg-terminal-surface p-6 text-left text-xs font-mono mb-6">
-        <div className="text-terminal-text-dim mb-1">
-          <span className="text-terminal-green">$</span> cat /dev/null
-        </div>
-        <div className="text-terminal-text-dim mb-3">
-          <span className="text-terminal-red">error:</span> the page you're looking for doesn't exist or has been moved.
-        </div>
-        <div className="text-terminal-text-dim">
-          <span className="text-terminal-green">$</span> <span className="text-terminal-accent">cd</span> ~
-        </div>
-      </div>
+    <div className="max-w-xl mx-auto px-6 py-32 text-center">
+      <div className="text-[clamp(4rem,10vw,7rem)] font-bold text-df-text-bright tracking-[-0.04em] leading-none mb-4">404</div>
+      <p className="text-[17px] text-df-text mb-8">
+        The page you're looking for doesn't exist or has been moved.
+      </p>
 
       <Link
         to="/"
-        className="inline-flex items-center gap-2 px-4 py-2 text-xs rounded border border-terminal-border text-terminal-accent hover:bg-terminal-accent/10 transition-colors"
+        className="inline-flex items-center gap-2 bg-df-accent text-white text-[15px] font-medium rounded-full px-8 py-3 hover:bg-df-accent-hover transition-colors"
       >
-        <Home size={14} />
-        back to home
+        <Home size={16} />
+        Back to Home
       </Link>
     </div>
   );
