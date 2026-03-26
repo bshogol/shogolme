@@ -933,9 +933,9 @@ func handleRSSFeed(w http.ResponseWriter, r *http.Request) {
 	rss := RSS{
 		Version: "2.0",
 		Channel: RSSChannel{
-			Title:       "~/blog",
+			Title:       "shogol.me",
 			Link:        baseURL,
-			Description: "A terminal-themed personal blog",
+			Description: "shogol.me — a perosnal agentic generated blog about Telecom, Go, Systems programming, Architecture",
 			Items:       items,
 		},
 	}
@@ -1097,7 +1097,7 @@ func injectOGTags(htmlBytes []byte, slug string, r *http.Request) []byte {
     <meta property="og:description" content="%s" />
     <meta property="og:url" content="%s/post/%s" />
     <meta name="description" content="%s" />
-    <title>%s | ~/blog</title>`,
+    <title>%s | shogol.me</title>`,
 		html.EscapeString(post.Title),
 		html.EscapeString(post.Excerpt),
 		baseURL,
