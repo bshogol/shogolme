@@ -18,6 +18,9 @@ tmp/
 *.swp
 *.swo
 
+# Blog posts (deployed via CLI, not committed)
+posts/
+
 # Secrets
 .env
 
