@@ -882,7 +882,7 @@ func injectOGTags(htmlBytes []byte, slug string, r *http.Request) []byte {
 
 func tagFilterSQL() string {
 	if dbDialect == "postgres" {
-		return "EXISTS (SELECT 1 FROM jsonb_array_elements_text(p.tags) t WHERE t = ?)"
+		return "? = ANY(p.tags)"
 	}
 	return "EXISTS (SELECT 1 FROM json_each(p.tags) WHERE json_each.value = ?)"
 }
@@ -890,7 +890,7 @@ func tagFilterSQL() string {
 func tagCountSQL() string {
 	if dbDialect == "postgres" {
 		return `SELECT t AS name, COUNT(*) AS count
-			FROM posts p, jsonb_array_elements_text(p.tags) t
+			FROM posts p, unnest(p.tags) AS t
 			WHERE p.published = true
 			GROUP BY t
 			ORDER BY count DESC, name ASC`
@@ -905,7 +905,7 @@ func tagCountSQL() string {
 func tagListSQL() string {
 	if dbDialect == "postgres" {
 		return `SELECT DISTINCT t
-			FROM posts p, jsonb_array_elements_text(p.tags) t
+			FROM posts p, unnest(p.tags) AS t
 			WHERE p.published = true
 			ORDER BY t`
 	}
