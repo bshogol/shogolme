@@ -1,6 +1,8 @@
 .PHONY: dev dev-frontend dev-backend build build-frontend build-backend clean docker docker-up docker-down deploy logs help
 
-DROPLET ?= deploy@shogol.me
+ifndef DROPLET
+$(error DROPLET is not set. Export it: export DROPLET=user@host)
+endif
 
 .DEFAULT_GOAL := help
 
