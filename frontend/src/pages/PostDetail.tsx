@@ -13,7 +13,7 @@ import { MobileTOC } from '../components/MobileTOC';
 import { CodeBlock } from '../components/CodeBlock';
 import { MermaidBlock } from '../components/MermaidBlock';
 import { SeriesNav } from '../components/SeriesNav';
-import { ReadingProgress } from '../components/ReadingProgress';
+
 
 function extractTextContent(node: any): string {
   if (typeof node === 'string') return node;

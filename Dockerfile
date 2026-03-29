@@ -13,13 +13,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY *.go ./
 COPY --from=frontend /app/frontend/dist ./frontend/dist
-RUN CGO_ENABLED=0 go build -o blog .
+RUN CGO_ENABLED=0 go build -o shogolme .
 
 # Stage 3: Final image
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
-COPY --from=backend /app/blog .
+COPY --from=backend /app/shogolme .
+RUN mkdir -p /app/data && chown -R appuser:appgroup /app
+USER appuser
 EXPOSE 5467
 ENV PORT=5467
-CMD ["./blog"]
+CMD ["./shogolme", "serve"]

@@ -2,30 +2,29 @@ services:
   blog:
     build: .
     ports:
-      - "5467:5467"
+      - "80:5467"
     environment:
       - PORT=5467
-      - LOG_FORMAT=text
-      - ADMIN_API_KEY=${ADMIN_API_KEY:-changeme}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DATABASE_URL=${DATABASE_URL}
       - BASE_URL=${BASE_URL:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-}
-    volumes:
-      - blog-data:/app/data
     restart: unless-stopped
-
-  # Optional: use Postgres instead of SQLite
-  # Uncomment below and set DATABASE_URL=postgres://blog:blog@db:5432/blog
-  #
-  # db:
-  #   image: postgres:17-alpine
-  #   environment:
-  #     POSTGRES_USER: blog
-  #     POSTGRES_PASSWORD: blog
-  #     POSTGRES_DB: blog
-  #   volumes:
-  #     - pg-data:/var/lib/postgresql/data
-  #   restart: unless-stopped
-
-volumes:
-  blog-data:
-  # pg-data:
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "1.0"

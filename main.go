@@ -32,17 +32,18 @@ var embeddedFrontend embed.FS
 
 var db *bun.DB
 
-func main() {
-	// Setup structured logging
-	var handler slog.Handler
-	if os.Getenv("LOG_FORMAT") == "text" {
-		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
-	} else {
-		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
-	}
-	slog.SetDefault(slog.New(handler))
+var cfg config
 
-	db = setupDB()
+func main() {
+	cfg = parseConfig()
+	setupLogging(cfg)
+
+	if cfg.command == "deploy" {
+		cmdDeploy(cfg.deployFile)
+		return
+	}
+
+	db = setupDB(cfg.DatabaseURL)
 	defer db.Close()
 
 	mux := http.NewServeMux()
@@ -58,14 +59,6 @@ func main() {
 	mux.HandleFunc("GET /api/series", handleGetSeries)
 	mux.HandleFunc("GET /api/series/{slug}", handleGetSeriesBySlug)
 
-	// Admin API routes (API key protected)
-	mux.HandleFunc("POST /api/admin/posts", adminAuth(handleCreatePost))
-	mux.HandleFunc("PUT /api/admin/posts/{id}", adminAuth(handleUpdatePost))
-	mux.HandleFunc("DELETE /api/admin/posts/{id}", adminAuth(handleDeletePost))
-	mux.HandleFunc("POST /api/admin/series", adminAuth(handleCreateSeries))
-	mux.HandleFunc("PUT /api/admin/series/{id}", adminAuth(handleUpdateSeries))
-	mux.HandleFunc("DELETE /api/admin/series/{id}", adminAuth(handleDeleteSeries))
-
 	// RSS feed
 	mux.HandleFunc("GET /feed.xml", handleRSSFeed)
 
@@ -74,9 +67,9 @@ func main() {
 
 	// Serve frontend
 	var frontendFS fs.FS
-	if dir := os.Getenv("FRONTEND_DIR"); dir != "" {
-		slog.Info("serving frontend from filesystem", "dir", dir)
-		frontendFS = os.DirFS(dir)
+	if cfg.FrontendDir != "" {
+		slog.Info("serving frontend from filesystem", "dir", cfg.FrontendDir)
+		frontendFS = os.DirFS(cfg.FrontendDir)
 	} else {
 		sub, err := fs.Sub(embeddedFrontend, "frontend/dist")
 		if err != nil {
@@ -89,19 +82,17 @@ func main() {
 	mux.Handle("/", spaHandler(frontendFS))
 
 	// Build middleware chain: outermost → innermost
-	rl := newRateLimiter()
+	rl := newRateLimiter(cfg.RateLimitRPS, cfg.RateBurst)
 	var h http.Handler = mux
 	h = rateLimitMiddleware(rl, h)
 	h = etagMiddleware(h)
 	h = gzipMiddleware(h)
+	h = securityHeadersMiddleware(h)
 	h = corsMiddleware(h)
 	h = requestIDMiddleware(h)
 	h = requestLoggerMiddleware(h)
 
-	addr := ":5467"
-	if port := os.Getenv("PORT"); port != "" {
-		addr = ":" + port
-	}
+	addr := ":" + cfg.Port
 
 	srv := &http.Server{
 		Addr:         addr,
@@ -183,7 +174,7 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 // --- CORS ---
 
 func corsMiddleware(next http.Handler) http.Handler {
-	allowedOrigins := os.Getenv("CORS_ORIGINS") // comma-separated, empty = same-origin only
+	allowedOrigins := cfg.CORSOrigins // comma-separated, empty = same-origin only
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
@@ -230,6 +221,34 @@ var compressibleTypes = map[string]bool{
 	"application/rss+xml": true,
 	"text/plain":          true,
 }
+
+// --- Security Headers ---
+
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'self'; "+
+				"script-src 'self'; "+
+				"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "+
+				"font-src 'self' https://fonts.gstatic.com; "+
+				"img-src 'self' data:; "+
+				"connect-src 'self'; "+
+				"frame-ancestors 'none'")
+
+		// HSTS — only set when behind TLS (reverse proxy sets X-Forwarded-Proto)
+		if r.Header.Get("X-Forwarded-Proto") == "https" || r.TLS != nil {
+			w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// --- Gzip ---
 
 func gzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -321,20 +340,7 @@ type rateLimiter struct {
 	burst    float64 // max tokens
 }
 
-func newRateLimiter() *rateLimiter {
-	rate := 10.0
-	burst := 20.0
-	if v := os.Getenv("RATE_LIMIT_RPS"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			rate = f
-		}
-	}
-	if v := os.Getenv("RATE_LIMIT_BURST"); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			burst = f
-		}
-	}
-
+func newRateLimiter(rate, burst float64) *rateLimiter {
 	rl := &rateLimiter{rate: rate, burst: burst}
 
 	// Cleanup goroutine
@@ -624,243 +630,6 @@ func handleGetSeriesBySlug(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, SeriesWithPosts{Series: series, Posts: items})
 }
 
-// --- Admin handlers ---
-
-func adminAuth(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		apiKey := os.Getenv("ADMIN_API_KEY")
-		if apiKey == "" {
-			apiKey = "changeme"
-		}
-
-		key := r.Header.Get("X-API-Key")
-		if key == "" {
-			key = r.URL.Query().Get("api_key")
-		}
-
-		if key != apiKey {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		next(w, r)
-	}
-}
-
-func handleCreatePost(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Slug        string   `json:"slug"`
-		Title       string   `json:"title"`
-		Excerpt     string   `json:"excerpt"`
-		Content     string   `json:"content"`
-		Tags        []string `json:"tags"`
-		Published   bool     `json:"published"`
-		SeriesID    *string  `json:"series_id"`
-		SeriesOrder int      `json:"series_order"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-
-	if input.Slug == "" || input.Title == "" {
-		http.Error(w, "slug and title are required", http.StatusBadRequest)
-		return
-	}
-
-	post := Post{
-		ID:          uuid.New().String(),
-		Slug:        input.Slug,
-		Title:       input.Title,
-		Excerpt:     input.Excerpt,
-		Content:     input.Content,
-		Tags:        input.Tags,
-		Published:   input.Published,
-		SeriesID:    input.SeriesID,
-		SeriesOrder: input.SeriesOrder,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if _, err := db.NewInsert().Model(&post).Exec(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	writeJSON(w, post)
-}
-
-func handleUpdatePost(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-
-	var post Post
-	if err := db.NewSelect().Model(&post).Where("id = ?", id).Scan(r.Context()); err != nil {
-		http.Error(w, "post not found", http.StatusNotFound)
-		return
-	}
-
-	var input struct {
-		Slug        *string  `json:"slug"`
-		Title       *string  `json:"title"`
-		Excerpt     *string  `json:"excerpt"`
-		Content     *string  `json:"content"`
-		Tags        []string `json:"tags"`
-		Published   *bool    `json:"published"`
-		SeriesID    *string  `json:"series_id"`
-		SeriesOrder *int     `json:"series_order"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-
-	if input.Slug != nil {
-		post.Slug = *input.Slug
-	}
-	if input.Title != nil {
-		post.Title = *input.Title
-	}
-	if input.Excerpt != nil {
-		post.Excerpt = *input.Excerpt
-	}
-	if input.Content != nil {
-		post.Content = *input.Content
-	}
-	if input.Tags != nil {
-		post.Tags = input.Tags
-	}
-	if input.Published != nil {
-		post.Published = *input.Published
-	}
-	if input.SeriesID != nil {
-		post.SeriesID = input.SeriesID
-	}
-	if input.SeriesOrder != nil {
-		post.SeriesOrder = *input.SeriesOrder
-	}
-	post.UpdatedAt = time.Now()
-
-	if _, err := db.NewUpdate().Model(&post).WherePK().Exec(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, post)
-}
-
-func handleDeletePost(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-
-	res, err := db.NewDelete().Model((*Post)(nil)).Where("id = ?", id).Exec(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		http.Error(w, "post not found", http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func handleCreateSeries(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Slug        string `json:"slug"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-
-	if input.Slug == "" || input.Name == "" {
-		http.Error(w, "slug and name are required", http.StatusBadRequest)
-		return
-	}
-
-	s := Series{
-		ID:          uuid.New().String(),
-		Slug:        input.Slug,
-		Name:        input.Name,
-		Description: input.Description,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if _, err := db.NewInsert().Model(&s).Exec(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	writeJSON(w, s)
-}
-
-func handleUpdateSeries(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-
-	var s Series
-	if err := db.NewSelect().Model(&s).Where("id = ?", id).Scan(r.Context()); err != nil {
-		http.Error(w, "series not found", http.StatusNotFound)
-		return
-	}
-
-	var input struct {
-		Slug        *string `json:"slug"`
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-
-	if input.Slug != nil {
-		s.Slug = *input.Slug
-	}
-	if input.Name != nil {
-		s.Name = *input.Name
-	}
-	if input.Description != nil {
-		s.Description = *input.Description
-	}
-	s.UpdatedAt = time.Now()
-
-	if _, err := db.NewUpdate().Model(&s).WherePK().Exec(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, s)
-}
-
-func handleDeleteSeries(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-
-	res, err := db.NewDelete().Model((*Series)(nil)).Where("id = ?", id).Exec(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		http.Error(w, "series not found", http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // --- RSS Feed ---
 
 type RSS struct {
@@ -885,7 +654,7 @@ type RSSItem struct {
 }
 
 func handleRSSFeed(w http.ResponseWriter, r *http.Request) {
-	baseURL := os.Getenv("BASE_URL")
+	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = fmt.Sprintf("http://%s", r.Host)
 	}
@@ -958,7 +727,7 @@ type SitemapURL struct {
 }
 
 func handleSitemap(w http.ResponseWriter, r *http.Request) {
-	baseURL := os.Getenv("BASE_URL")
+	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = fmt.Sprintf("http://%s", r.Host)
 	}
@@ -1086,7 +855,7 @@ func injectOGTags(htmlBytes []byte, slug string, r *http.Request) []byte {
 		return htmlBytes
 	}
 
-	baseURL := os.Getenv("BASE_URL")
+	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = fmt.Sprintf("http://%s", r.Host)
 	}
