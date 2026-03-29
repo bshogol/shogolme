@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type config struct {
@@ -71,16 +72,26 @@ func parseConfig() config {
 		deployFlags.StringVar(&cfg.DatabaseURL, "db", envStr("DATABASE_URL", ""), "database URL")
 		deployFlags.StringVar(&cfg.LogFormat, "log-format", envStr("LOG_FORMAT", "json"), "log format: json or text")
 		deployFlags.StringVar(&cfg.LogLevel, "log-level", envStr("LOG_LEVEL", "info"), "log level: debug, info, warn, error")
-		deployFlags.Parse(os.Args[2:])
 
-		args := deployFlags.Args()
-		if len(args) == 0 {
+		// Find the YAML file and separate it from flags
+		var file string
+		var flagArgs []string
+		for _, arg := range os.Args[2:] {
+			if strings.HasSuffix(arg, ".yaml") || strings.HasSuffix(arg, ".yml") {
+				file = arg
+			} else {
+				flagArgs = append(flagArgs, arg)
+			}
+		}
+		deployFlags.Parse(flagArgs)
+
+		if file == "" {
 			fmt.Fprintln(os.Stderr, "error: deploy requires a YAML file path")
-			fmt.Fprintln(os.Stderr, "usage: shogolme deploy <file.yaml>")
+			fmt.Fprintln(os.Stderr, "usage: shogolme deploy <file.yaml> [--db <url>]")
 			os.Exit(1)
 		}
 		cfg.command = "deploy"
-		cfg.deployFile = args[0]
+		cfg.deployFile = file
 		return cfg
 
 	case "-h", "--help", "help":
