@@ -4,13 +4,14 @@ Requires=docker.service
 After=docker.service
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
+Type=simple
 User=deploy
 Group=deploy
 WorkingDirectory=/opt/shogol
-ExecStart=/usr/bin/docker compose up -d
+ExecStart=/usr/bin/docker compose up --force-recreate
 ExecStop=/usr/bin/docker compose down
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
