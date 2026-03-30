@@ -69,6 +69,21 @@ type PostSeriesInfo struct {
 	Posts []SeriesPostItem `json:"posts"`
 }
 
+// PostListItem is a slim post for the list endpoint with computed reading time.
+type PostListItem struct {
+	ID          string   `json:"id"`
+	Slug        string   `json:"slug"`
+	Title       string   `json:"title"`
+	Excerpt     string   `json:"excerpt"`
+	Tags        []string `json:"tags"`
+	Published   bool     `json:"published"`
+	CreatedAt   string   `json:"created_at"`
+	ViewCount   int64    `json:"view_count"`
+	SeriesID    *string  `json:"series_id,omitempty"`
+	SeriesOrder int      `json:"series_order,omitempty"`
+	ReadingTime int      `json:"reading_time"`
+}
+
 // SearchResult is a post with a highlighted snippet.
 type SearchResult struct {
 	ID        string   `json:"id"`

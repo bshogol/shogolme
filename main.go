@@ -456,7 +456,7 @@ func handleGetPosts(w http.ResponseWriter, r *http.Request) {
 
 	var posts []Post
 	q := db.NewSelect().Model(&posts).
-		Column("id", "slug", "title", "excerpt", "tags", "published", "created_at", "view_count", "series_id", "series_order").
+		Column("id", "slug", "title", "excerpt", "content", "tags", "published", "created_at", "view_count", "series_id", "series_order").
 		Where("published = ?", true).
 		OrderExpr("created_at DESC").
 		Limit(limit).
@@ -471,11 +471,29 @@ func handleGetPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if posts == nil {
-		posts = []Post{}
+	items := make([]PostListItem, len(posts))
+	for i, p := range posts {
+		words := len(strings.Fields(p.Content))
+		rt := words / 200
+		if rt < 1 {
+			rt = 1
+		}
+		items[i] = PostListItem{
+			ID:          p.ID,
+			Slug:        p.Slug,
+			Title:       p.Title,
+			Excerpt:     p.Excerpt,
+			Tags:        p.Tags,
+			Published:   p.Published,
+			CreatedAt:   p.CreatedAt.Format(time.RFC3339),
+			ViewCount:   p.ViewCount,
+			SeriesID:    p.SeriesID,
+			SeriesOrder: p.SeriesOrder,
+			ReadingTime: rt,
+		}
 	}
 
-	writeJSON(w, posts)
+	writeJSON(w, items)
 }
 
 func handleGetPost(w http.ResponseWriter, r *http.Request) {

@@ -25,6 +25,7 @@ export interface BlogPostListItem {
   view_count: number;
   series_id?: string;
   series_order?: number;
+  reading_time: number;
 }
 
 export interface TOCItem {

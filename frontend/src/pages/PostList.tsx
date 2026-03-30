@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Calendar, ChevronRight, Eye, BookOpen } from 'lucide-react';
+import { Calendar, ChevronRight, Eye, BookOpen, Clock } from 'lucide-react';
 import { fetchPosts, fetchPost, fetchTagsWithCount } from '../api/posts';
+import { usePostListKeys } from '../hooks/useKeyboardNav';
+import { cn } from '../lib/cn';
 
 export function PostList() {
   const [searchParams] = useSearchParams();
@@ -27,6 +29,7 @@ export function PostList() {
   };
 
   const popularTags = tags?.slice(0, 8) ?? [];
+  const focusedIndex = usePostListKeys(posts?.map((p) => p.slug) ?? []);
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-24 sm:py-32">
@@ -87,12 +90,18 @@ export function PostList() {
 
       {posts && posts.length > 0 && (
         <div className="space-y-1">
-          {posts.map((post) => (
+          {posts.map((post, i) => (
             <Link
               key={post.id}
               to={`/post/${post.slug}`}
               onMouseEnter={() => prefetch(post.slug)}
-              className="group block px-5 py-5 -mx-5 rounded-xl border border-transparent hover:border-df-border hover:bg-[#050508] transition-colors"
+              ref={(el) => { if (i === focusedIndex) el?.scrollIntoView({ block: 'nearest' }); }}
+              className={cn(
+                "group block px-5 py-5 -mx-5 rounded-xl border transition-colors",
+                i === focusedIndex
+                  ? "border-df-accent/40 bg-[#050508]"
+                  : "border-transparent hover:border-df-border hover:bg-[#050508]"
+              )}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -120,6 +129,10 @@ export function PostList() {
                         month: 'short',
                         day: 'numeric',
                       })}
+                    </span>
+                    <span className="flex items-center gap-1 text-[13px] text-df-text-dim">
+                      <Clock size={12} />
+                      {post.reading_time} min
                     </span>
                     {post.view_count > 0 && (
                       <span className="flex items-center gap-1 text-[13px] text-df-text-dim">

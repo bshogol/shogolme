@@ -13,6 +13,8 @@ import { MobileTOC } from '../components/MobileTOC';
 import { CodeBlock } from '../components/CodeBlock';
 import { MermaidBlock } from '../components/MermaidBlock';
 import { SeriesNav } from '../components/SeriesNav';
+import { ReadingProgress } from '../components/ReadingProgress';
+import { useEscapeBack } from '../hooks/useKeyboardNav';
 
 
 function extractTextContent(node: any): string {
@@ -57,6 +59,8 @@ export function PostDetail() {
     );
   }
 
+  useEscapeBack();
+
   const tocItems = extractTOC(post.content);
   const readingTime = Math.max(1, Math.ceil(post.content.split(/\s+/).length / 200));
 
@@ -66,6 +70,7 @@ export function PostDetail() {
 
   return (
     <>
+      <ReadingProgress />
       <div className="max-w-6xl mx-auto px-6 py-24 sm:py-32">
         {/* Mobile TOC */}
         {tocItems.length > 0 && <MobileTOC items={tocItems} />}
