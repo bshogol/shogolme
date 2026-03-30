@@ -2,7 +2,7 @@
 
 @theme {
   --font-mono: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
 
   --color-df-bg: #000000;
   --color-df-surface: #080808;

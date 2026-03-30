@@ -20,7 +20,7 @@ export function MermaidBlock({ code }: Props) {
       mermaid.initialize({
         startOnLoad: false,
         theme: 'dark',
-        fontFamily: 'Inter, system-ui, sans-serif',
+        fontFamily: 'SF Mono, Fira Code, JetBrains Mono, ui-monospace, monospace',
       });
 
       const id = `mermaid-${++mermaidId}`;
