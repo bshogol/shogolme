@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Performance &amp; Memory — Shogol</title>
+<meta name="description" content="Escape analysis, sync.Pool, allocations, and profiling — removing the allocations that actually matter." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 08</span><span>·</span><span>Performance &amp; Memory</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 08</span><span>·</span><span>Performance &amp; Memory</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">MAY 11, 2026</span><span><b>PART 08 / 10</b></span><span>5 MIN READ</span><span>PERFORMANCE</span></div>
+  <h1 class="post-title">Performance &amp; Memory</h1>
+  <p class="post-dek">Escape analysis, <code>sync.Pool</code>, allocations, and profiling — finding the few allocations that matter and removing them with measurement, not guesswork.</p>
+
+  <div class="prose">
+    <p>Go gives you a garbage collector, so you can mostly ignore memory — until you can't. When a service is spending its time in GC, or latency spikes under load, you need to understand where allocations come from and how to remove the ones that matter.</p>
+
+    <p>The cardinal rule first: <strong>measure, don't guess.</strong> Then we'll cover escape analysis, the allocation patterns that bite, and <code>sync.Pool</code>.</p>
+
+    <h2>Rule zero: profile before you optimize</h2>
+    <p>The most common performance mistake in Go is optimizing the wrong thing. Your intuition about hotspots is usually wrong. Go ships world-class profiling tools — use them.</p>
+
+    <p><strong>Benchmarks</strong> with allocation stats:</p>
+
+    <pre><code>func BenchmarkParse(b *testing.B) {
+    data := loadTestData()
+    b.ReportAllocs() // show allocs/op
+    b.ResetTimer()   // exclude setup from timing
+    for i := 0; i &lt; b.N; i++ {
+        _ = Parse(data)
+    }
+}</code></pre>
+
+    <pre><code>$ go test -bench=Parse -benchmem
+BenchmarkParse-8   1000000   1053 ns/op   320 B/op   4 allocs/op</code></pre>
+
+    <p><code>B/op</code> and <code>allocs/op</code> are often more actionable than <code>ns/op</code> — allocations drive GC pressure, and GC pressure drives tail latency.</p>
+
+    <p><strong>Profiles</strong> for live or benchmarked code:</p>
+
+    <pre><code>go test -bench=. -cpuprofile cpu.out -memprofile mem.out
+go tool pprof cpu.out      # then `top`, `list FuncName`, `web`</code></pre>
+
+    <p>And <code>-benchmem</code> plus <code>pprof</code>'s memory profile tell you <em>where</em> allocations happen. Compare benchmarks across changes with <code>benchstat</code> so you know a "speedup" is real and not noise.</p>
+
+    <h2>Escape analysis: stack vs heap</h2>
+    <p>Go decides automatically whether a value lives on the <strong>stack</strong> (cheap; freed when the function returns) or the <strong>heap</strong> (managed by the GC). A value "escapes" to the heap when the compiler can't prove its lifetime is bounded by the function — typically because a pointer to it outlives the call.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 320" role="img" aria-label="Escape analysis decides whether a value lives on the cheap stack or the GC-managed heap, based on whether a pointer to it outlives the function call">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">does a pointer to the value outlive the call?</text>
+        <!-- decision diamond -->
+        <g class="pop"><rect class="dgm-box-accent" x="280" y="50" width="160" height="48" rx="9"/><text class="dgm-accent" x="360" y="79" text-anchor="middle" font-size="14" font-weight="700">escape analysis</text></g>
+        <!-- branches -->
+        <path class="dgm-flow draw d2" pathLength="1" d="M330 98 L180 150" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M390 98 L540 150" />
+        <text class="dgm-muted" x="225" y="128" text-anchor="middle" font-size="12">no</text>
+        <text class="dgm-muted" x="495" y="128" text-anchor="middle" font-size="12">yes</text>
+        <!-- stack -->
+        <g class="pop d3"><rect class="dgm-box" x="60" y="155" width="240" height="120" rx="11"/><text class="dgm-ink" x="180" y="184" text-anchor="middle" font-size="16" font-weight="700">stack</text><text class="dgm-muted" x="180" y="208" text-anchor="middle" font-size="12">cheap · freed on return</text><text class="dgm-muted" x="180" y="228" text-anchor="middle" font-size="12">no GC involvement</text><text class="dgm-accent" x="180" y="256" text-anchor="middle" font-size="12" font-weight="600">t := Thing{}</text></g>
+        <!-- heap -->
+        <g class="pop d4"><rect class="dgm-box" x="420" y="155" width="240" height="120" rx="11"/><text class="dgm-ink" x="540" y="184" text-anchor="middle" font-size="16" font-weight="700">heap</text><text class="dgm-muted" x="540" y="208" text-anchor="middle" font-size="12">GC-managed · costs later</text><text class="dgm-muted" x="540" y="228" text-anchor="middle" font-size="12">"moved to heap"</text><text class="dgm-accent" x="540" y="256" text-anchor="middle" font-size="12" font-weight="600">return &amp;t</text></g>
+      </svg>
+      <figcaption>The compiler places each value · only escaping ones land on the heap</figcaption>
+    </figure>
+
+    <p>See the compiler's decisions:</p>
+
+    <pre><code>go build -gcflags='-m' ./...
+# ./main.go:10:6: moved to heap: x
+# ./main.go:15:13: ... escapes to heap</code></pre>
+
+    <p>Common escape triggers:</p>
+
+    <pre><code>// Escapes: returning a pointer to a local.
+func newThing() *Thing {
+    t := Thing{} // t escapes — its pointer outlives newThing
+    return &amp;t
+}
+
+// Escapes: storing in an interface often forces heap allocation.
+func log(v any) { ... }
+log(myStruct) // myStruct may escape into the any
+
+// Escapes: capturing by reference in a closure that outlives the scope.</code></pre>
+
+    <p>You usually don't fight escape analysis directly — it's right far more often than you'd manage by hand, and "avoid pointers to reduce escapes" is the kind of micro-optimization that rarely matters. But when a profile points at a hot allocation, <code>-gcflags='-m'</code> tells you <em>why</em> it's on the heap, which is the first step to removing it.</p>
+
+    <h2>Allocation patterns that matter</h2>
+    <p>When allocations <em>do</em> show up in a profile, these are the usual culprits and fixes.</p>
+
+    <p><strong>Preallocate slices when you know the size.</strong> Growing a slice reallocates and copies repeatedly. If you know (or can estimate) the final length, set the capacity up front:</p>
+
+    <pre><code>// Bad: may reallocate several times as it grows.
+var result []int
+for _, v := range input {
+    result = append(result, transform(v))
+}
+
+// Good: one allocation.
+result := make([]int, 0, len(input))
+for _, v := range input {
+    result = append(result, transform(v))
+}</code></pre>
+
+    <p>The same applies to maps: <code>make(map[K]V, hint)</code> avoids rehashing as it grows.</p>
+
+    <p><strong>Build strings with <code>strings.Builder</code>, not <code>+=</code>.</strong> Concatenation in a loop allocates a new string every iteration (strings are immutable):</p>
+
+    <pre><code>// Bad: O(n²) allocations.
+s := ""
+for _, part := range parts {
+    s += part
+}
+
+// Good: one growing buffer, then one final string.
+var b strings.Builder
+b.Grow(estimatedSize) // optional: preallocate if you know roughly how big
+for _, part := range parts {
+    b.WriteString(part)
+}
+s := b.String()</code></pre>
+
+    <p><strong>Avoid hidden copies of large structs.</strong> Passing or ranging over big structs by value copies them. Use pointers or index access for large elements:</p>
+
+    <pre><code>// Copies each (large) item per iteration.
+for _, item := range bigItems { use(item) }
+
+// Avoids the copy.
+for i := range bigItems { use(&amp;bigItems[i]) }</code></pre>
+
+    <p><strong>Beware <code>[]byte</code>↔<code>string</code> conversions in hot paths.</strong> Each conversion normally copies. In tight loops this adds up; restructure to convert once, or use the APIs that accept the type you already have.</p>
+
+    <h2><code>sync.Pool</code>: reuse instead of reallocate</h2>
+    <p>When you repeatedly allocate and discard the same kind of object in a hot path — buffers being the classic case — <code>sync.Pool</code> lets you recycle them, taking pressure off the GC:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 280" role="img" aria-label="A sync.Pool recycles buffers across goroutines: each goroutine gets a buffer, resets it, uses it, and puts it back instead of allocating a fresh one">
+        <!-- pool -->
+        <g class="pop"><rect class="dgm-box-accent" x="280" y="110" width="160" height="64" rx="12"/><text class="dgm-accent" x="360" y="138" text-anchor="middle" font-size="15" font-weight="700">sync.Pool</text><text class="dgm-muted" x="360" y="158" text-anchor="middle" font-size="11">recycled buffers</text></g>
+        <!-- goroutine A -->
+        <g class="pop d2"><rect class="dgm-box" x="60" y="40" width="170" height="48" rx="10"/><text class="dgm-ink" x="145" y="63" text-anchor="middle" font-size="13" font-weight="600">goroutine A</text><text class="dgm-muted" x="145" y="79" text-anchor="middle" font-size="10">Get → Reset → use</text></g>
+        <!-- goroutine B -->
+        <g class="pop d3"><rect class="dgm-box" x="60" y="196" width="170" height="48" rx="10"/><text class="dgm-ink" x="145" y="219" text-anchor="middle" font-size="13" font-weight="600">goroutine B</text><text class="dgm-muted" x="145" y="235" text-anchor="middle" font-size="10">Get → Reset → use</text></g>
+        <!-- Get arrows (pool -> goroutine) -->
+        <path class="dgm-flow draw d2" pathLength="1" d="M280 130 C 250 105, 250 75, 230 68" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M280 154 C 250 185, 250 210, 230 216" />
+        <text class="dgm-muted" x="248" y="98" text-anchor="middle" font-size="11">Get()</text>
+        <text class="dgm-muted" x="248" y="196" text-anchor="middle" font-size="11">Get()</text>
+        <!-- Put arrows (goroutine -> pool, dashed) -->
+        <path class="dgm-line draw d4" pathLength="1" d="M230 78 C 300 100, 300 110, 320 112" stroke-dasharray="4 4"/>
+        <path class="dgm-line draw d4" pathLength="1" d="M230 206 C 300 184, 300 174, 320 172" stroke-dasharray="4 4"/>
+        <text class="dgm-muted" x="305" y="78" text-anchor="middle" font-size="11">Put()</text>
+        <text class="dgm-muted" x="305" y="214" text-anchor="middle" font-size="11">Put()</text>
+        <!-- GC can drop -->
+        <g class="pop d5"><rect class="dgm-box" x="510" y="110" width="170" height="64" rx="12"/><text class="dgm-ink" x="595" y="138" text-anchor="middle" font-size="13" font-weight="600">GC</text><text class="dgm-muted" x="595" y="158" text-anchor="middle" font-size="10">may drop at any time</text></g>
+        <path class="dgm-line draw d4" pathLength="1" d="M440 142 H510" stroke-dasharray="4 4"/>
+      </svg>
+      <figcaption>Goroutines borrow and return buffers · the GC can reclaim the pool whenever it likes</figcaption>
+    </figure>
+
+    <pre><code>var bufPool = sync.Pool{
+    New: func() any { return new(bytes.Buffer) },
+}
+
+func process(data []byte) string {
+    buf := bufPool.Get().(*bytes.Buffer)
+    buf.Reset()                 // CRUCIAL: clear stale state from last use
+    defer bufPool.Put(buf)      // return it for reuse
+
+    buf.Write(data)
+    buf.WriteString(" processed")
+    return buf.String()
+}</code></pre>
+
+    <p>Things to know before reaching for it:</p>
+
+    <ul>
+      <li><strong>It's not a cache.</strong> The GC can and will drop pooled objects at any time. Pool is for <em>transient, interchangeable</em> objects, not for keeping things alive.</li>
+      <li><strong>Always reset.</strong> Objects come back with whatever state they had. Forgetting to <code>Reset()</code> is a data-leak / correctness bug waiting to happen.</li>
+      <li><strong>Measure that it helps.</strong> <code>sync.Pool</code> has its own overhead and adds complexity. It pays off under genuine allocation pressure (high-throughput servers, encoders, buffer-heavy code) and can be a net loss otherwise. Benchmark before and after.</li>
+    </ul>
+
+    <h2>Knowing when to stop</h2>
+    <p>Performance work has sharply diminishing returns, and optimized code is usually harder to read. The discipline:</p>
+
+    <ol>
+      <li><strong>Establish you have a problem</strong> — a real latency or throughput target you're missing, not a hunch.</li>
+      <li><strong>Profile to find the actual hotspot</strong> — CPU and memory profiles, not guesswork.</li>
+      <li><strong>Optimize the one thing that matters</strong>, and re-benchmark to confirm it helped.</li>
+      <li><strong>Stop</strong> once you've hit the target. Don't trade readability for nanoseconds nobody will notice.</li>
+    </ol>
+
+    <p>Most Go code never needs any of this. The code that does needs it <em>measured</em>, precisely, in the few places that count.</p>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Reach for performance work only with a profile in hand. Understand escape analysis to know why things land on the heap (<code>-gcflags='-m'</code>), kill the allocations that profiles flag — preallocate slices and maps, build strings with <code>strings.Builder</code>, avoid large-struct copies — and use <code>sync.Pool</code> to recycle transient objects under real allocation pressure (always resetting them). Then stop. Measured, targeted optimization beats clever code you can't read, every time.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="07-generics.html"><div class="k">← Previous</div><h4>Generics</h4></a>
+  <a href="09-resiliency-patterns.html"><div class="k">Next →</div><h4>Resiliency Patterns</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 08 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

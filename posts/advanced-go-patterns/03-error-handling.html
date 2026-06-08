@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Error Handling — Shogol</title>
+<meta name="description" content="Wrapping with %w, sentinel errors, errors.Is/As, and custom error types in idiomatic Go." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 03</span><span>·</span><span>Error Handling</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 03</span><span>·</span><span>Error Handling</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">FEB 16, 2026</span><span><b>PART 03 / 10</b></span><span>5 MIN READ</span><span>ERRORS</span></div>
+  <h1 class="post-title">Error Handling</h1>
+  <p class="post-dek">Wrapping with context, sentinel values, <code>errors.Is</code> / <code>errors.As</code>, and custom error types — handling failures with ordinary code.</p>
+
+  <div class="prose">
+    <p><code>if err != nil</code> is the most mocked thing about Go and, done well, one of its quiet strengths. Errors are values. That means you can wrap them, inspect them, build them, and route on them with ordinary code — no special exception machinery, no invisible control flow.</p>
+
+    <p>This post is about doing that <em>well</em>: adding context without losing machine-readability, and knowing when to use a sentinel, a custom type, or just a wrapped string.</p>
+
+    <h2>Errors are values</h2>
+    <p>An <code>error</code> is just an interface with one method:</p>
+
+    <pre><code>type error interface {
+    Error() string
+}</code></pre>
+
+    <p>That's the whole contract. Anything with an <code>Error() string</code> method is an error. This simplicity is why everything below is just regular Go, not framework magic.</p>
+
+    <h2>Add context as errors travel up</h2>
+    <p>The cardinal sin is returning a bare error from deep in the stack. By the time it surfaces, <code>"connection refused"</code> tells you nothing about <em>what</em> was trying to connect or <em>why</em>. Wrap errors with context as they propagate.</p>
+
+    <p>Use <code>fmt.Errorf</code> with the <code>%w</code> verb — the <code>w</code> is for "wrap":</p>
+
+    <pre><code>func loadConfig(path string) (*Config, error) {
+    data, err := os.ReadFile(path)
+    if err != nil {
+        return nil, fmt.Errorf("loading config %q: %w", path, err)
+    }
+    cfg, err := parse(data)
+    if err != nil {
+        return nil, fmt.Errorf("parsing config %q: %w", path, err)
+    }
+    return cfg, nil
+}</code></pre>
+
+    <p>Now the final message reads like a breadcrumb trail:</p>
+
+    <pre><code>loading config "app.yaml": open app.yaml: no such file or directory</code></pre>
+
+    <p><code>%w</code> is special: it doesn't just format the error's text, it <em>embeds</em> the original error so it can be recovered later with <code>errors.Is</code> and <code>errors.As</code>. Using <code>%v</code> instead would flatten it to a string and sever that chain — so reach for <code>%w</code> whenever you want callers to be able to inspect the cause, and <code>%v</code> only when you deliberately want to obscure it.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 250" role="img" aria-label="An error wrapping chain built with fmt.Errorf %w, unwrapped layer by layer by errors.Is and errors.As">
+        <text class="dgm-title" x="360" y="26" text-anchor="middle" font-size="15">fmt.Errorf("…: %w", err) builds a chain — Is/As walk it back</text>
+        <!-- chain links left to right -->
+        <g class="pop"><rect class="dgm-box-accent" x="24" y="70" width="150" height="60" rx="11"/><text class="dgm-accent" x="99" y="96" text-anchor="middle" font-size="13" font-weight="700">"loading config"</text><text class="dgm-muted" x="99" y="116" text-anchor="middle" font-size="11">outermost wrap</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="222" y="70" width="150" height="60" rx="11"/><text class="dgm-ink" x="297" y="96" text-anchor="middle" font-size="13" font-weight="600">"open app.yaml"</text><text class="dgm-muted" x="297" y="116" text-anchor="middle" font-size="11">os layer</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="420" y="70" width="160" height="60" rx="11"/><text class="dgm-ink" x="500" y="96" text-anchor="middle" font-size="13" font-weight="600">syscall.ENOENT</text><text class="dgm-muted" x="500" y="116" text-anchor="middle" font-size="11">root cause</text></g>
+        <!-- %w connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M174 100 H222"/>
+        <text class="dgm-accent" x="198" y="90" text-anchor="middle" font-size="11" font-weight="700">%w</text>
+        <path class="dgm-flow draw d2" pathLength="1" d="M372 100 H420"/>
+        <text class="dgm-accent" x="396" y="90" text-anchor="middle" font-size="11" font-weight="700">%w</text>
+        <!-- unwrap arrow back -->
+        <path class="dgm-line draw d3" pathLength="1" d="M580 160 H99 V134" stroke-dasharray="5 5"/>
+        <g class="pop d4"><rect class="dgm-box-accent" x="612" y="138" width="92" height="44" rx="9"/><text class="dgm-accent" x="658" y="158" text-anchor="middle" font-size="12" font-weight="700">errors.Is</text><text class="dgm-accent" x="658" y="174" text-anchor="middle" font-size="12" font-weight="700">errors.As</text></g>
+        <text class="dgm-muted" x="340" y="200" text-anchor="middle" font-size="11">Unwrap() each layer until a match (or nil)</text>
+      </svg>
+      <figcaption>Each %w nests the cause; Is / As unwrap back down to it</figcaption>
+    </figure>
+
+    <p><strong>Conventions worth following:</strong> lowercase, no trailing punctuation, no "failed to" / "error" noise (the wrapping already implies failure). <code>"parsing config"</code> — not <code>"Failed to parse config!"</code>.</p>
+
+    <h2>Sentinel errors: when callers need to branch on a specific error</h2>
+    <p>Sometimes a caller needs to react to a <em>particular</em> error — "if the key is missing, use a default." A <strong>sentinel</strong> is a predeclared error value you can compare against:</p>
+
+    <pre><code>var ErrNotFound = errors.New("not found")
+
+func (c *Cache) Get(key string) (Value, error) {
+    v, ok := c.data[key]
+    if !ok {
+        return Value{}, ErrNotFound
+    }
+    return v, nil
+}</code></pre>
+
+    <p>Callers check with <code>errors.Is</code>, <strong>not</strong> <code>==</code>. <code>errors.Is</code> walks the whole <code>%w</code> chain, so it works even when the sentinel has been wrapped several layers deep:</p>
+
+    <pre><code>v, err := cache.Get("user:42")
+if errors.Is(err, ErrNotFound) {
+    v = defaultValue // handle the specific case
+} else if err != nil {
+    return err       // some other failure
+}</code></pre>
+
+    <p><code>io.EOF</code> and <code>sql.ErrNoRows</code> are the canonical examples. Sentinels are great, but they couple callers to your exact value, so expose them sparingly — only for conditions callers genuinely need to distinguish.</p>
+
+    <h2>Custom error types: when the error carries data</h2>
+    <p>A sentinel is a fixed value. When the error needs to <em>carry information</em> — a field name, an HTTP status, a retry hint — define a type:</p>
+
+    <pre><code>type ValidationError struct {
+    Field string
+    Value any
+}
+
+func (e *ValidationError) Error() string {
+    return fmt.Sprintf("invalid value %v for field %q", e.Value, e.Field)
+}</code></pre>
+
+    <p>Callers recover the typed error with <code>errors.As</code>, which (like <code>errors.Is</code>) walks the wrap chain and, on a match, fills in your variable:</p>
+
+    <pre><code>var verr *ValidationError
+if errors.As(err, &amp;verr) {
+    // We now have the typed error and its fields.
+    log.Printf("field %s rejected", verr.Field)
+    http.Error(w, verr.Error(), http.StatusBadRequest)
+}</code></pre>
+
+    <p>Make your custom type implement <code>Unwrap()</code> if it wraps another error, so the chain stays intact:</p>
+
+    <pre><code>type QueryError struct {
+    Query string
+    Err   error
+}
+
+func (e *QueryError) Error() string { return e.Query + ": " + e.Err.Error() }
+func (e *QueryError) Unwrap() error { return e.Err } // keeps errors.Is/As working</code></pre>
+
+    <h2><code>Is</code> vs <code>As</code> — the one-line distinction</h2>
+    <ul>
+      <li><strong><code>errors.Is(err, target)</code></strong> — "is this error (or anything it wraps) <em>equal to</em> this sentinel value?" Use for sentinels.</li>
+      <li><strong><code>errors.As(err, &amp;target)</code></strong> — "is this error (or anything it wraps) <em>of this type</em>?" If so, extract it. Use for custom types.</li>
+    </ul>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 240" role="img" aria-label="Decision diagram: branch on a fixed value with a sentinel and errors.Is, or extract data from a typed error with errors.As">
+        <text class="dgm-title" x="360" y="28" text-anchor="middle" font-size="15">What does the caller need from the error?</text>
+        <!-- root -->
+        <g class="pop"><rect class="dgm-box" x="280" y="46" width="160" height="46" rx="11"/><text class="dgm-ink" x="360" y="74" text-anchor="middle" font-size="14" font-weight="600">caller's need</text></g>
+        <!-- branches -->
+        <path class="dgm-flow draw d2" pathLength="1" d="M320 92 V120 H150 V150"/>
+        <path class="dgm-flow draw d2" pathLength="1" d="M400 92 V120 H570 V150"/>
+        <text class="dgm-muted" x="232" y="138" text-anchor="middle" font-size="11">just branch?</text>
+        <text class="dgm-muted" x="490" y="138" text-anchor="middle" font-size="11">need its data?</text>
+        <!-- left: sentinel -->
+        <g class="pop d3"><rect class="dgm-box-accent" x="40" y="150" width="220" height="64" rx="11"/><text class="dgm-accent" x="150" y="178" text-anchor="middle" font-size="14" font-weight="700">sentinel + errors.Is</text><text class="dgm-muted" x="150" y="198" text-anchor="middle" font-size="11">var ErrX = errors.New(…)</text></g>
+        <!-- right: typed -->
+        <g class="pop d4"><rect class="dgm-box-accent" x="460" y="150" width="220" height="64" rx="11"/><text class="dgm-accent" x="570" y="178" text-anchor="middle" font-size="14" font-weight="700">typed + errors.As</text><text class="dgm-muted" x="570" y="198" text-anchor="middle" font-size="11">type XError struct {…}</text></g>
+      </svg>
+      <figcaption>Sentinel vs typed error — pick by what the caller must do</figcaption>
+    </figure>
+
+    <h2>Joining multiple errors</h2>
+    <p>Modern Go lets you combine several errors into one — perfect for validating many fields or cleaning up multiple resources without bailing on the first failure:</p>
+
+    <pre><code>func (f *Form) Validate() error {
+    var errs []error
+    if f.Name == "" {
+        errs = append(errs, errors.New("name is required"))
+    }
+    if f.Age &lt; 0 {
+        errs = append(errs, errors.New("age must be non-negative"))
+    }
+    return errors.Join(errs...) // nil if errs is empty
+}</code></pre>
+
+    <p><code>errors.Is</code>/<code>As</code> work across a joined error too — they check every branch.</p>
+
+    <h2>When to wrap, when to handle, when to ignore</h2>
+    <ul>
+      <li><strong>Wrap and return</strong> when you can't handle the error here but want to add context for whoever can. This is the common case in library and middle-layer code.</li>
+      <li><strong>Handle</strong> when you can actually do something: retry, fall back, use a default. Handle as close to the cause as makes sense.</li>
+      <li><strong>Log or return — not both.</strong> Logging an error <em>and</em> returning it means it gets logged again up the stack, producing duplicate noise. Decide who owns it: typically the top-level handler logs; everyone below returns.</li>
+      <li><strong>Don't ignore silently.</strong> <code>_ = f.Close()</code> is occasionally fine, but at least think about it. For deferred closes that can fail meaningfully (writers!), capture the error:</li>
+    </ul>
+
+    <pre><code>func writeFile(path string, data []byte) (err error) {
+    f, err := os.Create(path)
+    if err != nil {
+        return err
+    }
+    defer func() {
+        // Capture the close error if we don't already have one.
+        if cerr := f.Close(); cerr != nil &amp;&amp; err == nil {
+            err = cerr
+        }
+    }()
+    _, err = f.Write(data)
+    return err
+}</code></pre>
+
+    <p>(Named return <code>err</code> makes the deferred capture possible.)</p>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Errors are values, so handle them with ordinary code. Wrap with <code>%w</code> to add context while preserving the chain; use <code>errors.Is</code> for sentinels callers branch on and <code>errors.As</code> for typed errors that carry data; implement <code>Unwrap</code> so your custom types stay inspectable; and use <code>errors.Join</code> to collect many at once. The discipline that pays off most: add context on the way up, handle at the right layer, and never log-and-return the same error twice.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="02-interface-design.html"><div class="k">← Previous</div><h4>Interface Design</h4></a>
+  <a href="04-concurrency-patterns.html"><div class="k">Next →</div><h4>Concurrency Patterns</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 03 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Resiliency Patterns — Shogol</title>
+<meta name="description" content="Retries, backoff, circuit breakers, timeouts, and bulkheads — composable patterns for graceful degradation in Go." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 09</span><span>·</span><span>Resiliency Patterns</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 09</span><span>·</span><span>Resiliency Patterns</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">MAY 24, 2026</span><span><b>PART 09 / 10</b></span><span>6 MIN READ</span><span>RESILIENCY</span></div>
+  <h1 class="post-title">Resiliency Patterns</h1>
+  <p class="post-dek">Retries, backoff, circuit breakers, timeouts, and bulkheads — the small, composable toolkit that lets a Go service degrade gracefully instead of cascading into an outage.</p>
+
+  <div class="prose">
+    <p>Networks fail. Dependencies get slow. Downstream services fall over right when you need them. Resiliency patterns are how a service degrades gracefully instead of cascading into an outage. None of them are exotic — they're a small set of techniques you compose, and Go's <a href="05-context.html">context</a> makes most of them natural.</p>
+
+    <p>We'll build up: timeouts, retries with backoff and jitter, circuit breakers, rate limiting, and bulkheads — and the order they should be layered.</p>
+
+    <h2>Start with timeouts — the foundation</h2>
+    <p>The first resiliency bug in almost every system is a missing timeout. A call with no deadline can hang forever, and one hung call ties up a goroutine, a connection, and eventually your whole capacity. <strong>Every outbound call needs a deadline.</strong></p>
+
+    <p>Use a per-call context (post 5), not a global client timeout, so each operation gets a bound appropriate to it:</p>
+
+    <pre><code>func (c *Client) GetUser(ctx context.Context, id string) (*User, error) {
+    ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+    defer cancel()
+
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url(id), nil)
+    if err != nil {
+        return nil, err
+    }
+    resp, err := c.http.Do(req) // aborts when the deadline fires
+    // ...
+}</code></pre>
+
+    <p>A subtle but vital point: timeouts must <em>propagate</em>. If your caller already has 1 second left on its context, don't override it with a fresh 5-second timeout — derive from the incoming context so the budget shrinks as it flows down the call tree. <code>context.WithTimeout(ctx, ...)</code> takes the <em>minimum</em> of the two deadlines, which is exactly what you want.</p>
+
+    <h2>Retries — but carefully</h2>
+    <p>Transient failures (a dropped connection, a brief blip) often succeed on a second try. But naïve retries are dangerous: they amplify load exactly when a dependency is already struggling, and retrying non-idempotent operations can double-charge a customer. The rules:</p>
+
+    <ol>
+      <li><strong>Only retry idempotent operations</strong> (or ones made idempotent with a key).</li>
+      <li><strong>Only retry transient errors</strong> — timeouts, 503s, connection resets. Never retry a 400 or a validation error; it'll fail every time.</li>
+      <li><strong>Back off exponentially</strong>, and <strong>add jitter</strong> so clients don't retry in lockstep and create a thundering herd.</li>
+      <li><strong>Cap the attempts</strong> and respect the context deadline.</li>
+    </ol>
+
+    <pre><code>func retry(ctx context.Context, attempts int, base time.Duration, op func() error) error {
+    var err error
+    for i := 0; i &lt; attempts; i++ {
+        if err = op(); err == nil {
+            return nil
+        }
+        if !isRetryable(err) {
+            return err // permanent failure — don't waste attempts
+        }
+        // Exponential backoff with full jitter.
+        backoff := base * (1 &lt;&lt; i)               // base, 2×, 4×, 8×...
+        sleep := time.Duration(rand.Int63n(int64(backoff))) // jitter in [0, backoff)
+
+        select {
+        case &lt;-time.After(sleep):
+        case &lt;-ctx.Done():
+            return ctx.Err() // give up if the overall deadline passed
+        }
+    }
+    return fmt.Errorf("after %d attempts: %w", attempts, err)
+}</code></pre>
+
+    <p>"Full jitter" — sleeping a random duration in <code>[0, backoff)</code> — is the variant that best spreads out retries. Without jitter, every client that failed at the same instant retries at the same instant, and you get synchronized spikes that keep knocking the dependency over.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 250" role="img" aria-label="Exponential backoff with full jitter: each retry waits a random duration inside a window that doubles every attempt">
+        <!-- timeline axis -->
+        <path class="dgm-line draw" pathLength="1" d="M40 200 H690" />
+        <text class="dgm-muted" x="40" y="225" font-size="11" font-family="'JetBrains Mono',monospace">t0</text>
+        <text class="dgm-muted" x="676" y="225" font-size="11" font-family="'JetBrains Mono',monospace">time →</text>
+        <!-- attempt windows (doubling), with jittered sample inside each -->
+        <g class="pop"><rect class="dgm-box-accent" x="60" y="150" width="60" height="50" rx="6"/><text class="dgm-accent" x="90" y="142" text-anchor="middle" font-size="11">base</text><circle class="dgm-accent" cx="98" cy="175" r="5"/></g>
+        <g class="pop d2"><rect class="dgm-box-accent" x="150" y="120" width="120" height="80" rx="6"/><text class="dgm-accent" x="210" y="112" text-anchor="middle" font-size="11">2×</text><circle class="dgm-accent" cx="178" cy="160" r="5"/></g>
+        <g class="pop d3"><rect class="dgm-box-accent" x="300" y="80" width="240" height="120" rx="6"/><text class="dgm-accent" x="420" y="72" text-anchor="middle" font-size="11">4×</text><circle class="dgm-accent" cx="500" cy="135" r="5"/></g>
+        <g class="pop d4"><rect class="dgm-box" x="570" y="50" width="120" height="150" rx="6" stroke-dasharray="4 4"/><text class="dgm-muted" x="630" y="42" text-anchor="middle" font-size="11">8× …</text></g>
+        <!-- sample label -->
+        <text class="dgm-ink" x="60" y="32" font-size="13" font-weight="600">each retry sleeps a random point in a window that doubles</text>
+        <text class="dgm-muted" x="60" y="50" font-size="11" font-family="'JetBrains Mono',monospace">sleep ∈ [0, backoff)  ·  the dot = the actual wait</text>
+      </svg>
+      <figcaption>Full jitter — the window doubles each attempt; the sleep is a random point inside it</figcaption>
+    </figure>
+
+    <p>Mark which errors are worth retrying with a small predicate (post 3's <code>errors.As</code>/<code>Is</code> is the tool):</p>
+
+    <pre><code>func isRetryable(err error) bool {
+    if errors.Is(err, context.DeadlineExceeded) {
+        return true
+    }
+    var nerr net.Error
+    if errors.As(err, &amp;nerr) &amp;&amp; nerr.Timeout() {
+        return true
+    }
+    return false // default: don't retry unknown errors
+}</code></pre>
+
+    <h2>Circuit breakers — stop hammering a dead dependency</h2>
+    <p>Retries handle <em>blips</em>. When a dependency is genuinely <em>down</em>, retrying just piles on. A <strong>circuit breaker</strong> detects sustained failure and "trips" — failing fast without even attempting the call — then periodically tests whether the dependency has recovered. It has three states:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 280" role="img" aria-label="Circuit breaker state machine: Closed trips to Open after too many failures; Open moves to Half-Open after a cooldown; a successful trial closes it, a failed trial re-opens it">
+        <!-- transition arrows -->
+        <path class="dgm-flow draw" pathLength="1" d="M195 95 H300" marker-end="url(#cbarrow)" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M425 110 Q480 175 425 220" marker-end="url(#cbarrow)" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M300 220 Q200 175 120 130" marker-end="url(#cbarrow)" />
+        <path class="dgm-line draw d3" pathLength="1" d="M360 175 V125" stroke-dasharray="5 5" marker-end="url(#cbarrow)" />
+        <defs>
+          <marker id="cbarrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path class="dgm-accent" d="M0 0 L10 5 L0 10 z" />
+          </marker>
+        </defs>
+        <!-- CLOSED -->
+        <g class="pop"><rect class="dgm-box" x="55" y="68" width="140" height="56" rx="11"/><text class="dgm-ink" x="125" y="93" text-anchor="middle" font-size="15" font-weight="700">CLOSED</text><text class="dgm-muted" x="125" y="111" text-anchor="middle" font-size="11">calls pass · count fails</text></g>
+        <!-- OPEN -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="300" y="68" width="140" height="56" rx="11"/><text class="dgm-accent" x="370" y="93" text-anchor="middle" font-size="15" font-weight="700">OPEN</text><text class="dgm-muted" x="370" y="111" text-anchor="middle" font-size="11">fail fast · reject</text></g>
+        <!-- HALF-OPEN -->
+        <g class="pop d3"><rect class="dgm-box" x="290" y="220" width="160" height="56" rx="11"/><text class="dgm-ink" x="370" y="245" text-anchor="middle" font-size="15" font-weight="700">HALF-OPEN</text><text class="dgm-muted" x="370" y="263" text-anchor="middle" font-size="11">let one trial through</text></g>
+        <!-- edge labels -->
+        <text class="dgm-muted" x="247" y="84" text-anchor="middle" font-size="11">too many fails</text>
+        <text class="dgm-muted" x="478" y="172" text-anchor="middle" font-size="11">cooldown</text>
+        <text class="dgm-muted" x="478" y="186" text-anchor="middle" font-size="11">elapses</text>
+        <text class="dgm-muted" x="195" y="168" text-anchor="middle" font-size="11">trial succeeds</text>
+        <text class="dgm-muted" x="430" y="155" text-anchor="middle" font-size="11">trial fails</text>
+      </svg>
+      <figcaption>The breaker's three states — Closed → Open → Half-Open, then back</figcaption>
+    </figure>
+
+    <ul>
+      <li><strong>Closed</strong> — normal operation; calls pass through, failures are counted.</li>
+      <li><strong>Open</strong> — the breaker tripped; calls fail immediately (fast), sparing both you and the struggling dependency. After a cooldown, move to half-open.</li>
+      <li><strong>Half-open</strong> — let a limited number of trial calls through. Success closes the breaker; failure re-opens it.</li>
+    </ul>
+
+    <p>A sketch of the core logic (use a battle-tested library in production — there are good ones — rather than shipping your own):</p>
+
+    <pre><code>func (cb *Breaker) Call(op func() error) error {
+    if !cb.allowRequest() { // open and still cooling down?
+        return ErrCircuitOpen
+    }
+    err := op()
+    cb.record(err) // updates failure count / state transitions
+    return err
+}</code></pre>
+
+    <p>The win is twofold: callers fail <em>fast</em> (no waiting on doomed timeouts), and the ailing dependency gets breathing room to recover instead of being pinned under retry load. Pair it with a fallback — serve stale cache, a default, or a degraded response — so an open circuit degrades gracefully rather than erroring outright.</p>
+
+    <h2>Rate limiting — protect yourself and others</h2>
+    <p>Rate limiting caps how fast operations happen — to respect a downstream's limits, to protect your own service from overload, or to enforce fairness. Go's standard <code>golang.org/x/time/rate</code> implements a token-bucket limiter:</p>
+
+    <pre><code>import "golang.org/x/time/rate"
+
+// 100 events/sec, with bursts of up to 20.
+limiter := rate.NewLimiter(100, 20)
+
+func (s *Service) handle(ctx context.Context, req Request) error {
+    if err := limiter.Wait(ctx); err != nil {
+        return err // context cancelled while waiting for a token
+    }
+    return s.process(req)
+}</code></pre>
+
+    <p><code>Wait</code> blocks until a token is available (or the context is cancelled); <code>Allow()</code> is the non-blocking variant for "reject immediately if over limit." Token buckets allow short bursts while bounding the sustained rate — usually what you want for both client-side throttling and server-side protection.</p>
+
+    <h2>Bulkheads — isolate failures</h2>
+    <p>Named after a ship's watertight compartments: partition resources so a failure in one area can't sink the whole vessel. Concretely, give each dependency its own bounded pool of concurrency so a slow one can't consume every goroutine and starve the others. A <a href="06-synchronization.html">semaphore</a> is the simplest bulkhead:</p>
+
+    <pre><code>// Each downstream gets its own concurrency budget.
+var paymentSem = semaphore.NewWeighted(10)
+var searchSem  = semaphore.NewWeighted(50)
+
+func callPayment(ctx context.Context) error {
+    if err := paymentSem.Acquire(ctx, 1); err != nil {
+        return err
+    }
+    defer paymentSem.Release(1)
+    return payment.Do(ctx)
+}</code></pre>
+
+    <p>If <code>payment</code> goes slow and saturates its 10 slots, callers to <code>payment</code> queue or fail — but <code>search</code> still has its own 50 slots and keeps serving. The failure is contained to one compartment.</p>
+
+    <h2>Layer them in the right order</h2>
+    <p>These patterns compose, and the nesting order matters. A useful default, from outermost to innermost:</p>
+
+    <pre><code>   rate limiter        ← shed load before doing any work
+     └─ bulkhead       ← bound concurrency per dependency
+         └─ circuit breaker  ← fail fast if the dependency is down
+             └─ retry        ← handle transient blips
+                 └─ timeout  ← bound every individual attempt
+                     └─ the actual call</code></pre>
+
+    <p>The reasoning: reject excess load early (rate limit), isolate what you do admit (bulkhead), skip calls to known-dead dependencies (breaker), retry the transient failures that remain, and bound each attempt with a timeout. Putting retry <em>inside</em> the breaker means a tripped circuit stops the retries too — exactly what you want.</p>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Resiliency is a small, composable toolkit: timeouts on every call (and propagate the deadline), careful retries (idempotent only, transient only, exponential backoff with jitter, capped), circuit breakers to fail fast on dead dependencies, rate limiting to shed excess load, and bulkheads to contain failures to one compartment. Layer them outermost-to-innermost — rate limit → bulkhead → breaker → retry → timeout — and lean on <code>context</code> to make cancellation flow through all of them.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="08-performance-and-memory.html"><div class="k">← Previous</div><h4>Performance &amp; Memory</h4></a>
+  <a href="10-grpc-patterns.html"><div class="k">Next →</div><h4>gRPC Patterns</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 09 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

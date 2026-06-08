@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Generics — Shogol</title>
+<meta name="description" content="Constraints, inference, and when not to reach for generics in Go." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 07</span><span>·</span><span>Generics</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 07</span><span>·</span><span>Generics</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">APR 22, 2026</span><span><b>PART 07 / 10</b></span><span>5 MIN READ</span><span>TYPES</span></div>
+  <h1 class="post-title">Generics</h1>
+  <p class="post-dek">Constraints, inference, and the discipline of knowing when to leave generics in the drawer.</p>
+
+  <div class="prose">
+    <p>Generics landed in Go and the community promptly split into "finally!" and "please don't." Both reactions are right, depending on what you do with them. Used well, generics remove a whole category of <code>interface{}</code> boilerplate and unsafe type assertions. Used carelessly, they make code harder to read for no benefit.</p>
+
+    <p>This post is about the <em>good</em> uses, the constraints system, and — just as important — when to leave generics in the drawer.</p>
+
+    <h2>The problem they solve</h2>
+    <p>Before generics, a reusable container or utility meant <code>interface{}</code> (now <code>any</code>) and runtime type assertions:</p>
+
+    <pre><code>// Pre-generics: loses type safety, requires assertions, can panic.
+func First(s []any) any {
+    return s[0]
+}
+
+x := First([]any{1, 2, 3}) // x is `any` — caller must assert x.(int)</code></pre>
+
+    <p>You lost compile-time type checking and paid for boxing. Generics give you the reuse <em>and</em> the type safety:</p>
+
+    <pre><code>func First[T any](s []T) T {
+    return s[0]
+}
+
+x := First([]int{1, 2, 3}) // x is int, checked at compile time
+y := First([]string{"a"})  // y is string</code></pre>
+
+    <p><code>[T any]</code> declares a <em>type parameter</em>. The compiler infers <code>T</code> from the argument, so you rarely write it explicitly. No assertions, no boxing, full type safety.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 300" role="img" aria-label="One generic function First[T any] replaces three copy-pasted typed versions">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">One generic function · many concrete types</text>
+        <!-- generic source box -->
+        <g class="pop"><rect class="dgm-box-accent" x="40" y="110" width="220" height="80" rx="12"/><text class="dgm-accent" x="150" y="145" text-anchor="middle" font-size="15" font-weight="700">First[T any]</text><text class="dgm-muted" x="150" y="168" text-anchor="middle" font-size="12">written once</text></g>
+        <!-- connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M260 135 H440"/>
+        <path class="dgm-flow draw d2" pathLength="1" d="M260 150 H420 V70 H440"/>
+        <path class="dgm-flow draw d3" pathLength="1" d="M260 165 H420 V230 H440"/>
+        <!-- instantiations -->
+        <g class="pop d2"><rect class="dgm-box" x="440" y="48" width="240" height="44" rx="9"/><text class="dgm-ink" x="560" y="75" text-anchor="middle" font-size="14" font-weight="600">First([]int{…}) → int</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="440" y="113" width="240" height="44" rx="9"/><text class="dgm-ink" x="560" y="140" text-anchor="middle" font-size="14" font-weight="600">First([]string{…}) → string</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="440" y="208" width="240" height="44" rx="9"/><text class="dgm-ink" x="560" y="235" text-anchor="middle" font-size="14" font-weight="600">First([]User{…}) → User</text></g>
+      </svg>
+      <figcaption>The compiler infers T at each call site — no copy-paste, no assertions</figcaption>
+    </figure>
+
+    <h2>Constraints: limiting what T can be</h2>
+    <p><code>any</code> means "any type," which only lets you do things every type supports (assign, pass around). To actually <em>operate</em> on a <code>T</code> — add it, compare it — you constrain it to types that support those operations.</p>
+
+    <p>A constraint is an interface that may also list concrete types:</p>
+
+    <pre><code>// Numeric is satisfied by any of these underlying types.
+type Numeric interface {
+    ~int | ~int64 | ~float64
+}
+
+func Sum[T Numeric](nums []T) T {
+    var total T
+    for _, n := range nums {
+        total += n // legal: every type in Numeric supports +
+    }
+    return total
+}</code></pre>
+
+    <p>The <code>~</code> means "any type whose <em>underlying</em> type is this," so a <code>type Celsius float64</code> also satisfies <code>~float64</code>. Without the <code>~</code>, only the exact type <code>float64</code> would qualify.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 240" role="img" aria-label="The Numeric constraint admits a set of underlying types int, int64, and float64">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">A constraint admits a set of types</text>
+        <!-- constraint box -->
+        <g class="pop"><rect class="dgm-box-accent" x="60" y="80" width="200" height="100" rx="12"/><text class="dgm-accent" x="160" y="125" text-anchor="middle" font-size="16" font-weight="700">Numeric</text><text class="dgm-muted" x="160" y="150" text-anchor="middle" font-size="12">~int | ~int64 | ~float64</text></g>
+        <!-- admits arrows -->
+        <path class="dgm-flow draw" pathLength="1" d="M260 110 H460"/>
+        <path class="dgm-flow draw d2" pathLength="1" d="M260 130 H440 V165 H460"/>
+        <path class="dgm-flow draw d3" pathLength="1" d="M260 130 H440 V215 H460"/>
+        <text class="dgm-muted" x="350" y="100" text-anchor="middle" font-size="11">admits</text>
+        <!-- admitted types -->
+        <g class="pop d2"><rect class="dgm-box" x="460" y="90" width="200" height="40" rx="9"/><text class="dgm-ink" x="560" y="115" text-anchor="middle" font-size="13" font-weight="600">int, int64, float64</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="460" y="145" width="200" height="40" rx="9"/><text class="dgm-ink" x="560" y="170" text-anchor="middle" font-size="13" font-weight="600">type Celsius float64</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="460" y="200" width="200" height="32" rx="9"/><text class="dgm-muted" x="560" y="221" text-anchor="middle" font-size="12">(via ~ underlying)</text></g>
+      </svg>
+      <figcaption>The ~ prefix widens a union to every type with that underlying type</figcaption>
+    </figure>
+
+    <p>The standard library ships ready-made constraints in <code>constraints</code> and, most usefully, <code>comparable</code> (built in) for anything usable as a map key or with <code>==</code>:</p>
+
+    <pre><code>// comparable is a built-in constraint: types that support == and !=.
+func Contains[T comparable](s []T, target T) bool {
+    for _, v := range s {
+        if v == target {
+            return true
+        }
+    }
+    return false
+}</code></pre>
+
+    <p>For ordering, <code>cmp.Ordered</code> (from the standard <code>cmp</code> package) covers everything that supports <code>&lt;</code>, <code>&gt;</code>, etc.:</p>
+
+    <pre><code>func Max[T cmp.Ordered](a, b T) T {
+    if a &gt; b {
+        return a
+    }
+    return b
+}</code></pre>
+
+    <p>(Note: <code>min</code> and <code>max</code> are now built-in for scalars; write your own generic version only when you need it over custom orderings or slices.)</p>
+
+    <h2>Where generics genuinely shine</h2>
+    <p><strong>1. Collection / slice / map utilities.</strong> The poster child. The standard <code>slices</code> and <code>maps</code> packages are built on generics:</p>
+
+    <pre><code>func Map[T, U any](s []T, f func(T) U) []U {
+    result := make([]U, len(s))
+    for i, v := range s {
+        result[i] = f(v)
+    }
+    return result
+}
+
+func Filter[T any](s []T, keep func(T) bool) []T {
+    var result []T
+    for _, v := range s {
+        if keep(v) {
+            result = append(result, v)
+        }
+    }
+    return result
+}
+
+names := Map([]User{...}, func(u User) string { return u.Name })
+adults := Filter(users, func(u User) bool { return u.Age &gt;= 18 })</code></pre>
+
+    <p><strong>2. Type-safe containers.</strong> A generic stack, set, ordered cache, or tree eliminates per-type duplication or <code>any</code>-based versions:</p>
+
+    <pre><code>type Stack[T any] struct {
+    items []T
+}
+
+func (s *Stack[T]) Push(v T) { s.items = append(s.items, v) }
+
+func (s *Stack[T]) Pop() (T, bool) {
+    var zero T
+    if len(s.items) == 0 {
+        return zero, false
+    }
+    v := s.items[len(s.items)-1]
+    s.items = s.items[:len(s.items)-1]
+    return v, true
+}</code></pre>
+
+    <p>Note <code>var zero T</code> — the idiomatic way to produce the zero value of a type parameter when you have nothing to return.</p>
+
+    <p><strong>3. Removing <code>any</code> from data-structure-ish code.</strong> Anywhere you were reaching for <code>any</code> plus a type assertion to write something reusable, a type parameter is almost always clearer and safer.</p>
+
+    <h2>When NOT to use generics</h2>
+    <p>This is the part people skip, so read it twice. Generics are a tool for <em>removing duplication across types</em>. If that's not your problem, they add complexity for nothing.</p>
+
+    <ul>
+      <li><strong>An interface already expresses what you need.</strong> If you only call <em>methods</em> on a value, an interface is simpler and more idiomatic. <code>io.Reader</code> doesn't need to be generic. Reach for generics when you need to operate on a <em>value</em> generically (compare it, do arithmetic, store it in a typed container) — not just call its methods.</li>
+      <li><strong>There's only one type in practice.</strong> Don't make a function generic "in case" you need another type later. Add the type parameter when the second type actually shows up. A concrete function is easier to read.</li>
+      <li><strong>It hurts readability.</strong> A signature like <code>func F[T any, U comparable, V cmp.Ordered](...)</code> with three constraints is a sign you've gone too far. If a reader has to decode the type machinery to understand what the function does, reconsider.</li>
+      <li><strong>For methods that vary by type.</strong> Go does <em>not</em> allow type parameters on individual methods (only on the type). If you need polymorphic behavior per type, that's what interfaces are for.</li>
+    </ul>
+
+    <p>A useful heuristic: <strong>interfaces are about behavior; generics are about types.</strong> If you're abstracting over "things that can do X," use an interface. If you're abstracting over "a container/algorithm that works for any type," use generics.</p>
+
+    <div class="callout">
+      <div class="k">Rule of thumb</div>
+      <p>Interfaces for behavior, generics for types. Don't make something generic until a second type actually demands it — and never trade readability for abstraction you don't yet need.</p>
+    </div>
+
+    <h2>A quick note on performance</h2>
+    <p>Don't choose generics <em>for</em> performance, and don't avoid them <em>for</em> performance — the effect is usually negligible and implementation-dependent. Choose them for type safety and reduced duplication. If a hot path's allocations matter, profile it (<a href="08-performance-and-memory.html">post 8</a>) rather than guessing about generic vs. interface dispatch.</p>
+
+    <h2>The takeaway</h2>
+    <p>Generics let you write reusable, type-safe code without <code>interface{}</code> and runtime assertions — ideal for slice/map utilities and typed containers. Constrain your type parameters to exactly the operations you need (<code>comparable</code>, <code>cmp.Ordered</code>, or a custom <code>~type</code> union), and use <code>var zero T</code> for zero values. But remember the dividing line: interfaces for behavior, generics for types. Don't make something generic until a second type actually demands it, and never trade readability for abstraction you don't yet need.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="06-synchronization.html"><div class="k">← Previous</div><h4>Synchronization Beyond Channels</h4></a>
+  <a href="08-performance-and-memory.html"><div class="k">Next →</div><h4>Performance &amp; Memory</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 07 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Interface Design — Shogol</title>
+<meta name="description" content="Accept interfaces, return structs, and keep them small — Go's interface philosophy, earned." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 02</span><span>·</span><span>Interface Design</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 02</span><span>·</span><span>Interface Design</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">FEB 03, 2026</span><span><b>PART 02 / 10</b></span><span>6 MIN READ</span><span>API DESIGN</span></div>
+  <h1 class="post-title">Interface Design</h1>
+  <p class="post-dek">Accept interfaces, return structs, and keep them small — the two rules that carry most of the weight in idiomatic Go.</p>
+
+  <div class="prose">
+    <p>Interfaces are where Go developers most often bring habits from other languages that actively hurt them. If you're declaring an interface for every struct, or defining interfaces next to their implementations, you're writing Java in Go.</p>
+
+    <p>Go's interface philosophy is different and, once it clicks, genuinely freeing. Two rules carry most of the weight: <strong>keep interfaces small</strong>, and <strong>accept interfaces, return structs</strong>. Let's earn both.</p>
+
+    <h2>Interfaces are satisfied implicitly</h2>
+    <p>The thing that makes Go interfaces special: a type satisfies an interface just by having the right methods. No <code>implements</code> keyword, no declaration of intent.</p>
+
+    <pre><code>type Stringer interface {
+    String() string
+}
+
+// Temperature satisfies Stringer just by having a String() method.
+// It never mentions Stringer.
+type Temperature float64
+
+func (t Temperature) String() string {
+    return fmt.Sprintf("%.1f°C", float64(t))
+}</code></pre>
+
+    <p>This decoupling is the whole point. The <em>consumer</em> of a type gets to decide what interface it needs — the producer doesn't have to predict it. That single fact drives everything else in this post.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 250" role="img" aria-label="A consumer defines a small interface; many producer types satisfy it implicitly without ever naming it">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">The consumer owns the interface — producers satisfy it implicitly</text>
+        <!-- consumer interface (accent) -->
+        <g class="pop"><rect class="dgm-box-accent" x="250" y="55" width="220" height="58" rx="11"/><text class="dgm-accent" x="360" y="80" text-anchor="middle" font-size="15" font-weight="700">io.Reader</text><text class="dgm-muted" x="360" y="100" text-anchor="middle" font-size="11">Read(p []byte) (int, error)</text></g>
+        <!-- connectors up from producers to interface -->
+        <path class="dgm-flow draw" pathLength="1" d="M110 175 V90 H250" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M280 175 V135 Q280 135 360 113" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M450 175 V135 Q450 135 360 113" />
+        <path class="dgm-flow draw d4" pathLength="1" d="M620 175 V90 H470" />
+        <!-- producer types -->
+        <g class="pop d2"><rect class="dgm-box" x="40" y="175" width="140" height="46" rx="9"/><text class="dgm-ink" x="110" y="203" text-anchor="middle" font-size="13" font-weight="600">*os.File</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="210" y="175" width="140" height="46" rx="9"/><text class="dgm-ink" x="280" y="203" text-anchor="middle" font-size="13" font-weight="600">*bytes.Buffer</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="380" y="175" width="140" height="46" rx="9"/><text class="dgm-ink" x="450" y="203" text-anchor="middle" font-size="13" font-weight="600">net.Conn</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="550" y="175" width="140" height="46" rx="9"/><text class="dgm-ink" x="620" y="203" text-anchor="middle" font-size="13" font-weight="600">strings.Reader</text></g>
+      </svg>
+      <figcaption>None of these types mention io.Reader — a Read method is enough</figcaption>
+    </figure>
+
+    <h2>Keep interfaces small</h2>
+    <p>The most-quoted line in Go is "the bigger the interface, the weaker the abstraction." The standard library's most useful interfaces are tiny:</p>
+
+    <pre><code>type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+
+type Writer interface {
+    Write(p []byte) (n int, err error)
+}</code></pre>
+
+    <p>One method each. And because they're small, <em>enormous</em> numbers of types satisfy them — files, network connections, buffers, HTTP bodies, gzip streams. Any function that takes an <code>io.Reader</code> works with all of them, including ones that didn't exist when the function was written.</p>
+
+    <p>A single-method interface is so common it has a naming convention: the interface is the method name plus <code>-er</code>. <code>Read</code> → <code>Reader</code>. <code>Close</code> → <code>Closer</code>. And you compose small interfaces into bigger ones when you need to:</p>
+
+    <pre><code>type ReadCloser interface {
+    Reader
+    Closer
+}</code></pre>
+
+    <p>Compare that to a sprawling interface:</p>
+
+    <pre><code>// Don't do this. It's a class disguised as an interface.
+type Storage interface {
+    Get(key string) ([]byte, error)
+    Set(key string, value []byte) error
+    Delete(key string) error
+    List(prefix string) ([]string, error)
+    Stat(key string) (FileInfo, error)
+    // ...12 more methods
+}</code></pre>
+
+    <p>Every consumer is now coupled to all 17 methods even if it calls one. Every test mock has to stub all 17. And nothing else can realistically satisfy it. Big interfaces are weak abstractions.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 240" role="img" aria-label="A fat 17-method interface couples every consumer to everything, versus several small single-method interfaces each consumer can depend on narrowly">
+        <text class="dgm-title" x="180" y="28" text-anchor="middle" font-size="14">Fat interface — weak</text>
+        <text class="dgm-title" x="540" y="28" text-anchor="middle" font-size="14">Small interfaces — strong</text>
+        <!-- fat side -->
+        <g class="pop"><rect class="dgm-box" x="70" y="50" width="220" height="150" rx="12"/><text class="dgm-ink" x="180" y="80" text-anchor="middle" font-size="14" font-weight="700">Storage</text><text class="dgm-muted" x="180" y="104" text-anchor="middle" font-size="11">Get · Set · Delete · List</text><text class="dgm-muted" x="180" y="122" text-anchor="middle" font-size="11">Stat · …12 more</text><text class="dgm-muted" x="180" y="158" text-anchor="middle" font-size="11">every consumer coupled</text><text class="dgm-muted" x="180" y="174" text-anchor="middle" font-size="11">to all 17 methods</text></g>
+        <!-- divider -->
+        <path class="dgm-line draw" pathLength="1" d="M360 40 V210" stroke-dasharray="4 5"/>
+        <!-- small side -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="430" y="50" width="220" height="40" rx="9"/><text class="dgm-accent" x="540" y="75" text-anchor="middle" font-size="13" font-weight="600">Getter — Get</text></g>
+        <g class="pop d3"><rect class="dgm-box-accent" x="430" y="100" width="220" height="40" rx="9"/><text class="dgm-accent" x="540" y="125" text-anchor="middle" font-size="13" font-weight="600">Setter — Set</text></g>
+        <g class="pop d4"><rect class="dgm-box-accent" x="430" y="150" width="220" height="40" rx="9"/><text class="dgm-accent" x="540" y="175" text-anchor="middle" font-size="13" font-weight="600">Deleter — Delete</text></g>
+      </svg>
+      <figcaption>Depend on the one method you call, not the fifteen you don't</figcaption>
+    </figure>
+
+    <h2>Accept interfaces, return structs</h2>
+    <p>This is the rule that reorganizes how you think about API boundaries.</p>
+
+    <p><strong>Accept interfaces</strong> in your function parameters. Ask for the <em>minimum behavior</em> you need, not a concrete type. This makes your function maximally reusable and trivially testable.</p>
+
+    <pre><code>// Bad: demands a concrete type, so callers must have a real *os.File,
+// and tests need a real file on disk.
+func Count(f *os.File) (int, error) { ... }
+
+// Good: accepts anything readable. Works with files, network streams,
+// strings.NewReader in tests, etc.
+func Count(r io.Reader) (int, error) {
+    data, err := io.ReadAll(r)
+    if err != nil {
+        return 0, err
+    }
+    return bytes.Count(data, []byte("\n")), nil
+}</code></pre>
+
+    <p>That second version is testable with zero filesystem setup:</p>
+
+    <pre><code>n, err := Count(strings.NewReader("a\nb\nc\n"))</code></pre>
+
+    <p><strong>Return structs</strong> (concrete types), not interfaces. The caller gets the full, documented type with all its methods and fields, and <em>they</em> decide what interface to view it through.</p>
+
+    <pre><code>// Good: returns the concrete type. The caller sees everything it can do.
+func NewClient(addr string) *Client { ... }
+
+// Usually unnecessary: returning an interface hides capabilities and
+// forces the caller to type-assert to get them back.
+func NewClient(addr string) ClientInterface { ... }</code></pre>
+
+    <p>There are exceptions — returning an interface makes sense when you genuinely have multiple implementations chosen at runtime (<code>io.Pipe</code> returns interfaces, <code>error</code> is an interface). But the <em>default</em> should be concrete-out. Returning an interface "to be flexible" usually just hides functionality and is the #1 source of unnecessary interfaces in Go codebases.</p>
+
+    <h2>Define interfaces at the point of use</h2>
+    <p>This follows directly from "consumers decide." Don't define an interface next to the type that implements it. Define it in the package that <em>consumes</em> it.</p>
+
+    <pre><code>// package payment — the CONSUMER defines exactly what it needs.
+package payment
+
+type Charger interface {
+    Charge(ctx context.Context, cents int) error
+}
+
+func Process(c Charger, cents int) error {
+    return c.Charge(context.Background(), cents)
+}</code></pre>
+
+    <pre><code>// package stripe — the PROVIDER doesn't know or care about payment.Charger.
+// Its *Client just happens to have a Charge method, so it satisfies it.
+package stripe
+
+type Client struct{ ... }
+
+func (c *Client) Charge(ctx context.Context, cents int) error { ... }</code></pre>
+
+    <p>The <code>stripe</code> package has no dependency on <code>payment</code>. The <code>payment</code> package defines the narrow contract it actually uses. You can swap in a different provider, or a fake in tests, and <code>stripe</code> never needs to know. This inversion — interfaces owned by consumers, not producers — is the single most important interface idiom in Go.</p>
+
+    <h2>Practical guidance</h2>
+    <ul>
+      <li><strong>Don't create an interface until you have a reason.</strong> "I might need to mock this someday" is not a reason to add an interface today — you can add it the moment you write the test, in the consumer's package. Premature interfaces are pure overhead.</li>
+      <li><strong>One implementation? Probably no interface.</strong> If there's exactly one real implementation and you don't need a test double, just use the concrete type.</li>
+      <li><strong>Keep the interface as small as the consumer needs.</strong> If <code>Process</code> only calls <code>Charge</code>, don't make it depend on a 5-method interface — define a 1-method one.</li>
+      <li><strong><code>any</code> is a smell in signatures.</strong> <code>interface{}</code> / <code>any</code> discards all type information. Reach for <a href="07-generics.html">generics</a> before falling back to <code>any</code>.</li>
+      <li><strong>Watch the nil-interface trap.</strong> A non-nil interface holding a nil pointer is <em>not</em> <code>== nil</code>. Returning a typed nil pointer as an <code>error</code> is a classic bug:</li>
+    </ul>
+
+    <pre><code>func doThing() error {
+    var e *MyError // nil pointer
+    // ... if we never assign e ...
+    return e       // BUG: returns a non-nil error interface wrapping a nil *MyError!
+}
+// Caller's `if err != nil` is TRUE even though "nothing went wrong".</code></pre>
+
+    <p>Return a literal <code>nil</code> for the success case, never a typed nil pointer.</p>
+
+    <h2>The takeaway</h2>
+    <p>Go interfaces are implicit, which means consumers — not producers — should own them. Keep them small (often one method), accept them as parameters but return concrete structs, and define them in the package that uses them, right when you need them. Resist the urge to add interfaces speculatively. Do this and your code gets more testable, more reusable, and dramatically less coupled — with less ceremony, not more.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Accept interfaces, return structs. Keep them tiny, and let the package that uses an interface be the one that defines it — the moment it actually needs it, not a moment sooner.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="01-functional-options.html"><div class="k">← Previous</div><h4>Functional Options</h4></a>
+  <a href="03-error-handling.html"><div class="k">Next →</div><h4>Error Handling</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 02 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

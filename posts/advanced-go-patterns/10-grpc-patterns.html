@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>gRPC Patterns — Shogol</title>
+<meta name="description" content="Production gRPC in Go: interceptors, streaming, deadlines, and idiomatic errors." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 10</span><span>·</span><span>gRPC Patterns</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 10</span><span>·</span><span>gRPC Patterns</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">JUN 06, 2026</span><span><b>PART 10 / 10</b></span><span>6 MIN READ</span><span>RPC</span></div>
+  <h1 class="post-title">gRPC Patterns</h1>
+  <p class="post-dek">The patterns that make a gRPC service production-grade in Go — interceptors, streaming done right, idiomatic errors, and deadlines that propagate across the wire.</p>
+
+  <div class="prose">
+    <p>gRPC is the default choice for service-to-service communication in Go: strongly typed contracts from Protocol Buffers, efficient binary framing over HTTP/2, and first-class streaming. The basics are well documented, so this post focuses on the <em>patterns</em> that make a gRPC service production-grade — interceptors, streaming done right, proper error handling, and deadline propagation that ties straight back to <a href="05-context.html">context</a> and <a href="09-resiliency-patterns.html">resiliency</a>.</p>
+
+    <h2>The contract comes first</h2>
+    <p>Everything in gRPC starts from a <code>.proto</code> file. The discipline that pays off: treat it as a real API contract, evolved carefully.</p>
+
+    <pre><code>service UserService {
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (stream User); // server streaming
+}
+
+message GetUserRequest {
+  string id = 1;
+}</code></pre>
+
+    <p>Two rules that prevent breaking changes:</p>
+
+    <ul>
+      <li><strong>Never reuse or renumber a field tag.</strong> The numbers (<code>= 1</code>) are the wire identity. Reserve removed ones (<code>reserved 3;</code>) so they can't be recycled.</li>
+      <li><strong>Add, don't mutate.</strong> New fields are backward compatible; changing a field's type or meaning is not. Plan for forward/backward compatibility from day one.</li>
+    </ul>
+
+    <p>The generated Go gives you a typed client and a server interface to implement. Everything below is about what you wrap around that.</p>
+
+    <h2>Interceptors — gRPC's middleware</h2>
+    <p>Interceptors are the single most important pattern for a real service. They're middleware: cross-cutting logic that runs around every RPC, so logging, metrics, auth, recovery, and tracing live in one place instead of being copy-pasted into every handler. There are unary and stream variants on both client and server.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 300" role="img" aria-label="A chain of interceptors wrapping the RPC handler: recovery, logging, and auth around the inner handler">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">Interceptor chain — each wraps the next, the handler is innermost</text>
+        <!-- nested boxes -->
+        <g class="pop"><rect class="dgm-box" x="60" y="55" width="600" height="200" rx="14"/><text class="dgm-accent" x="80" y="80" font-size="13" font-weight="700">RECOVERY</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="120" y="100" width="480" height="120" rx="12"/><text class="dgm-accent" x="140" y="124" font-size="13" font-weight="700">LOGGING</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="180" y="138" width="360" height="50" rx="10"/><text class="dgm-accent" x="200" y="160" font-size="13" font-weight="700">AUTH</text></g>
+        <g class="pop d4"><rect class="dgm-box-accent" x="280" y="150" width="160" height="48" rx="9"/><text class="dgm-accent" x="360" y="179" text-anchor="middle" font-size="14" font-weight="700">handler</text></g>
+        <!-- request in / response out -->
+        <path class="dgm-flow draw" pathLength="1" d="M20 105 H60" />
+        <path class="dgm-flow draw d4" pathLength="1" d="M660 205 H700" stroke-dasharray="4 4"/>
+        <text class="dgm-muted" x="20" y="96" font-size="11">request →</text>
+        <text class="dgm-muted" x="700" y="225" text-anchor="end" font-size="11">→ response</text>
+      </svg>
+      <figcaption>Recovery outermost, then logging, then auth — the handler runs in the middle</figcaption>
+    </figure>
+
+    <p>A unary server interceptor:</p>
+
+    <pre><code>func LoggingInterceptor(
+    ctx context.Context,
+    req any,
+    info *grpc.UnaryServerInfo,
+    handler grpc.UnaryHandler,
+) (any, error) {
+    start := time.Now()
+    resp, err := handler(ctx, req) // call the actual RPC handler
+    slog.Info("rpc",
+        "method", info.FullMethod,
+        "duration", time.Since(start),
+        "code", status.Code(err),
+    )
+    return resp, err
+}</code></pre>
+
+    <p>A recovery interceptor that turns a panic into a clean error instead of killing the connection — every production server should have one:</p>
+
+    <pre><code>func RecoveryInterceptor(
+    ctx context.Context, req any,
+    info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
+) (resp any, err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            slog.Error("panic in handler", "method", info.FullMethod, "panic", r)
+            err = status.Errorf(codes.Internal, "internal error")
+        }
+    }()
+    return handler(ctx, req)
+}</code></pre>
+
+    <p>Chain them on the server in the order you want them to run:</p>
+
+    <pre><code>srv := grpc.NewServer(
+    grpc.ChainUnaryInterceptor(
+        RecoveryInterceptor, // outermost: catches panics from everything inside
+        LoggingInterceptor,
+        AuthInterceptor,
+    ),
+)</code></pre>
+
+    <p>The client side mirrors this — client interceptors are exactly where the <a href="09-resiliency-patterns.html">resiliency patterns</a> belong. Retries, circuit breaking, and per-call timeouts wrap <em>every</em> outbound RPC cleanly when implemented as a <code>grpc.UnaryClientInterceptor</code>, instead of being scattered through call sites.</p>
+
+    <h2>Errors — use status codes, not raw errors</h2>
+    <p>A returned plain <code>error</code> becomes an opaque <code>codes.Unknown</code> on the wire, losing all semantics. Return proper gRPC statuses so clients can react correctly:</p>
+
+    <pre><code>import (
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
+)
+
+func (s *server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {
+    if req.Id == "" {
+        return nil, status.Error(codes.InvalidArgument, "id is required")
+    }
+    user, err := s.store.Find(ctx, req.Id)
+    if errors.Is(err, ErrNotFound) {
+        return nil, status.Errorf(codes.NotFound, "user %q not found", req.Id)
+    }
+    if err != nil {
+        // Don't leak internals to the caller; log the detail, return a clean code.
+        slog.Error("store.Find failed", "err", err)
+        return nil, status.Error(codes.Internal, "internal error")
+    }
+    return user, nil
+}</code></pre>
+
+    <p>On the client, recover the code to decide how to react — which is exactly how you decide whether something is <a href="09-resiliency-patterns.html">retryable</a>:</p>
+
+    <pre><code>resp, err := client.GetUser(ctx, req)
+switch status.Code(err) {
+case codes.OK:
+    // success
+case codes.NotFound:
+    // handle missing
+case codes.Unavailable, codes.DeadlineExceeded:
+    // transient — safe to retry with backoff
+default:
+    // permanent — surface it
+}</code></pre>
+
+    <p>Map your domain errors to the closest standard code: <code>InvalidArgument</code>, <code>NotFound</code>, <code>AlreadyExists</code>, <code>PermissionDenied</code>, <code>Unauthenticated</code>, <code>ResourceExhausted</code> (great for rate limiting), <code>Unavailable</code>, <code>DeadlineExceeded</code>. For richer errors, the <code>status</code> package can attach typed details to the message.</p>
+
+    <h2>Deadlines propagate across the wire — use them</h2>
+    <p>This is gRPC's quiet superpower and ties the whole series together. A deadline set on the client's context travels <em>with the request</em> to the server, which sees the remaining time on its own incoming context. Set deadlines on the client:</p>
+
+    <pre><code>ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+defer cancel()
+resp, err := client.GetUser(ctx, req) // the 2s budget crosses the network</code></pre>
+
+    <p>…and respect them on the server, especially before expensive work:</p>
+
+    <pre><code>func (s *server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {
+    if ctx.Err() != nil {
+        return nil, status.FromContextError(ctx.Err()).Err() // already expired? bail
+    }
+    // Pass ctx down to the DB so its budget shrinks across hops.
+    return s.store.Find(ctx, req.Id)
+}</code></pre>
+
+    <p>Because the deadline shrinks as it flows through each hop in a call chain, a top-level "this request gets 2 seconds" is honored end-to-end — no service in the chain keeps working on a request the caller already abandoned. This is <a href="05-context.html">context</a> cancellation, made distributed. Always set a client deadline; an RPC with no deadline is the distributed version of the hung call from post 9.</p>
+
+    <h2>Streaming — and its backpressure</h2>
+    <p>gRPC offers server-streaming, client-streaming, and bidirectional streaming. Use streaming when there's a natural sequence — many results, a live feed, an upload — rather than forcing it into unary calls or paging by hand.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 280" role="img" aria-label="The four gRPC call types: unary, server streaming, client streaming, and bidirectional streaming">
+        <text class="dgm-title" x="360" y="28" text-anchor="middle" font-size="15">Four gRPC call types · client ↔ server</text>
+        <!-- unary -->
+        <g class="pop"><text class="dgm-accent" x="40" y="70" font-size="12" font-weight="700">UNARY</text></g>
+        <path class="dgm-flow draw" pathLength="1" d="M180 64 H540" />
+        <path class="dgm-line draw" pathLength="1" d="M540 88 H180" stroke-dasharray="4 4"/>
+        <text class="dgm-muted" x="180" y="56" font-size="10">client</text>
+        <text class="dgm-muted" x="540" y="56" text-anchor="end" font-size="10">server</text>
+        <!-- server streaming -->
+        <g class="pop d2"><text class="dgm-accent" x="40" y="128" font-size="12" font-weight="700">SERVER ⤵</text></g>
+        <path class="dgm-flow draw d2" pathLength="1" d="M180 118 H540" />
+        <path class="dgm-line draw d2" pathLength="1" d="M540 130 H180" stroke-dasharray="4 4"/>
+        <path class="dgm-line draw d2" pathLength="1" d="M540 142 H180" stroke-dasharray="4 4"/>
+        <path class="dgm-line draw d2" pathLength="1" d="M540 154 H180" stroke-dasharray="4 4"/>
+        <!-- client streaming -->
+        <g class="pop d3"><text class="dgm-accent" x="40" y="200" font-size="12" font-weight="700">CLIENT ⤴</text></g>
+        <path class="dgm-flow draw d3" pathLength="1" d="M180 184 H540" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M180 196 H540" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M180 208 H540" />
+        <path class="dgm-line draw d3" pathLength="1" d="M540 220 H180" stroke-dasharray="4 4"/>
+        <!-- bidi -->
+        <g class="pop d4"><text class="dgm-accent" x="40" y="262" font-size="12" font-weight="700">BIDI ⇄</text></g>
+        <path class="dgm-flow draw d4" pathLength="1" d="M180 250 H540" />
+        <path class="dgm-line draw d4" pathLength="1" d="M540 262 H180" stroke-dasharray="4 4"/>
+        <path class="dgm-flow draw d4" pathLength="1" d="M180 274 H540" />
+      </svg>
+      <figcaption>Solid = client→server · dashed = server→client · multiple lines = a stream</figcaption>
+    </figure>
+
+    <p>A server-streaming handler, sending results as they're produced:</p>
+
+    <pre><code>func (s *server) ListUsers(req *pb.ListUsersRequest, stream pb.UserService_ListUsersServer) error {
+    ctx := stream.Context() // carries the client's deadline &amp; cancellation
+    for _, user := range s.store.All() {
+        if err := ctx.Err(); err != nil {
+            return err // client hung up or deadline passed — stop streaming
+        }
+        if err := stream.Send(user); err != nil {
+            return err // send failure (broken connection)
+        }
+    }
+    return nil // returning nil closes the stream cleanly
+}</code></pre>
+
+    <p>Things that bite people with streams:</p>
+
+    <ul>
+      <li><strong>Check <code>stream.Context()</code></strong> in the loop, so a client that disconnects (or times out) stops your server from streaming into the void.</li>
+      <li><strong>Streams aren't free.</strong> Each open stream holds a goroutine and buffers. For huge result sets, prefer streaming over loading everything into memory — but cap how many concurrent streams you'll serve (a <a href="09-resiliency-patterns.html">bulkhead</a>).</li>
+      <li><strong>Backpressure is real.</strong> <code>Send</code> blocks when the client isn't reading fast enough (HTTP/2 flow control). That's a feature — it stops a slow consumer from exhausting your memory — but it means your producer must respect the context so it doesn't block forever.</li>
+    </ul>
+
+    <h2>Operational must-haves</h2>
+    <p>A production gRPC server should also wire up:</p>
+
+    <ul>
+      <li><strong>Health checking</strong> via the standard <code>grpc.health.v1</code> service, so load balancers and orchestrators know when an instance is ready.</li>
+      <li><strong>Reflection</strong> (<code>reflection.Register</code>) in non-prod, so tools like <code>grpcurl</code> can introspect the service without the <code>.proto</code>.</li>
+      <li><strong>Keepalives</strong> configured to detect dead connections, and sane message-size limits so a malformed or hostile request can't exhaust memory.</li>
+      <li><strong>Graceful shutdown</strong> with <code>srv.GracefulStop()</code> so in-flight RPCs finish before the process exits.</li>
+    </ul>
+
+    <h2>The takeaway</h2>
+    <p>Production gRPC in Go is about the patterns around the generated code: put cross-cutting concerns (logging, recovery, auth, metrics, and your <a href="09-resiliency-patterns.html">resiliency</a> logic) in interceptors; return proper <code>status</code> codes instead of opaque errors so clients can branch and retry correctly; set client deadlines and respect them server-side so cancellation propagates end-to-end across the wire; and use streaming with context checks and an eye on backpressure. Treat the <code>.proto</code> as a versioned contract, and don't ship without health checks and graceful shutdown.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>That's the series. Across ten posts the same thread runs through everything: a request carries a budget, and good Go code respects it. Interceptors put cross-cutting logic in one place, status codes let callers branch and retry, and deadlines set on a client context flow across the wire and shrink at every hop — turning context cancellation into something distributed. Treat the <code>.proto</code> as a versioned contract, lean on streaming and its backpressure where the data is naturally a sequence, and never ship without health checks and graceful shutdown. Now go build something resilient.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="09-resiliency-patterns.html"><div class="k">← Previous</div><h4>Resiliency Patterns</h4></a>
+  <a href="../../index.html"><div class="k">The end →</div><h4>Back to all posts</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 10 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

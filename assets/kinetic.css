@@ -214,3 +214,21 @@ a{color:inherit;text-decoration:none}
   .pn{grid-template-columns:1fr}
   .lede{margin-left:0}
 }
+
+/* ===== multi-series: filter chips, feed, series CTA ================== */
+.backlink .sep{opacity:.4;margin:0 2px}
+.post-meta .date{color:var(--accent)}
+.filters{display:flex;flex-wrap:wrap;gap:10px;max-width:1180px;margin:34px auto 0;padding:0 28px}
+.chip{font-family:'JetBrains Mono';font-size:12.5px;font-weight:500;color:var(--muted);
+  background:var(--surface);border:1px solid var(--line-strong);border-radius:999px;
+  padding:9px 18px;cursor:pointer;transition:.25s;letter-spacing:.3px}
+.chip:hover{color:var(--accent);border-color:var(--accent)}
+.chip.active{background:var(--accent-bright);border-color:var(--accent-bright);color:#fff;
+  box-shadow:0 0 22px rgba(47,107,255,.4)}
+#series-cta{max-width:1180px;margin:16px auto 0;padding:0 28px;min-height:18px}
+.series-cta-link{font-family:'JetBrains Mono';font-size:13px;color:var(--accent);letter-spacing:.5px}
+.series-cta-link:hover{text-decoration:underline}
+.plist .sec{margin-top:6px}
+@keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.row.anim{animation:riseIn .5s ease both}
+@media(prefers-reduced-motion:reduce){.row.anim{animation:none}}

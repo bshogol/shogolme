@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Functional Options — Shogol</title>
+<meta name="description" content="Constructors that stay clean as your config grows." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 01</span><span>·</span><span>Functional Options</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 01</span><span>·</span><span>Functional Options</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">JAN 14, 2026</span><span><b>PART 01 / 10</b></span><span>5 MIN READ</span><span>API DESIGN</span></div>
+  <h1 class="post-title">Functional Options</h1>
+  <p class="post-dek">Constructors that stay clean as your config grows.</p>
+
+  <div class="prose">
+    <p>You're writing a constructor for a <code>Server</code>. Today it needs a host and a port. Next month, a timeout. Then TLS config, a logger, max connections, a retry policy. How do you let callers configure all of that without making the common case painful and without breaking every existing call site each time you add a knob?</p>
+
+    <p>The <strong>functional options</strong> pattern is Go's idiomatic answer. You've seen it in the standard library and nearly every serious Go package. Here's how it works and when to reach for it.</p>
+
+    <h2>The approaches that don't scale</h2>
+    <p><strong>A giant constructor</strong> breaks every caller each time you add a parameter, and reads terribly at the call site:</p>
+
+    <pre><code>// What does the third `true` mean? Who knows.
+srv := NewServer("localhost", 8080, 30*time.Second, true, false, nil, 100)</code></pre>
+
+    <p><strong>A config struct</strong> is better, and sometimes the right call (more on that later). But it has rough edges: zero values are ambiguous (did the caller <em>want</em> <code>Timeout: 0</code>, or just not set it?), and there's nothing stopping invalid combinations.</p>
+
+    <pre><code>type Config struct {
+    Host    string
+    Port    int
+    Timeout time.Duration
+}
+srv := NewServer(Config{Host: "localhost", Port: 8080})
+// Timeout is 0 here — is that "no timeout" or "use the default"? Unclear.</code></pre>
+
+    <h2>The pattern</h2>
+    <p>An <em>option</em> is a function that mutates the thing being configured. The constructor takes a variadic slice of them.</p>
+
+    <pre><code>type Server struct {
+    host    string
+    port    int
+    timeout time.Duration
+    logger  *slog.Logger
+}
+
+// Option configures a Server.
+type Option func(*Server)
+
+func WithPort(port int) Option {
+    return func(s *Server) { s.port = port }
+}
+
+func WithTimeout(d time.Duration) Option {
+    return func(s *Server) { s.timeout = d }
+}
+
+func WithLogger(l *slog.Logger) Option {
+    return func(s *Server) { s.logger = l }
+}
+
+func NewServer(host string, opts ...Option) *Server {
+    // Sensible defaults first.
+    s := &amp;Server{
+        host:    host,
+        port:    8080,
+        timeout: 30 * time.Second,
+        logger:  slog.Default(),
+    }
+    // Then let options override them.
+    for _, opt := range opts {
+        opt(s)
+    }
+    return s
+}</code></pre>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 320" role="img" aria-label="A variadic slice of option functions, each mutating one field of the config, applied over defaults">
+        <!-- defaults box -->
+        <g class="pop"><rect class="dgm-box" x="30" y="120" width="150" height="86" rx="11"/><text class="dgm-ink" x="105" y="150" text-anchor="middle" font-size="14" font-weight="700">defaults</text><text class="dgm-muted" x="105" y="172" text-anchor="middle" font-size="11">port 8080</text><text class="dgm-muted" x="105" y="189" text-anchor="middle" font-size="11">timeout 30s</text></g>
+        <!-- option funcs -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="270" y="36" width="180" height="46" rx="9"/><text class="dgm-accent" x="360" y="64" text-anchor="middle" font-size="14" font-weight="600">WithPort(9090)</text></g>
+        <g class="pop d3"><rect class="dgm-box-accent" x="270" y="100" width="180" height="46" rx="9"/><text class="dgm-accent" x="360" y="128" text-anchor="middle" font-size="14" font-weight="600">WithTimeout(5s)</text></g>
+        <g class="pop d4"><rect class="dgm-box-accent" x="270" y="164" width="180" height="46" rx="9"/><text class="dgm-accent" x="360" y="192" text-anchor="middle" font-size="14" font-weight="600">WithLogger(l)</text></g>
+        <!-- connectors options to result -->
+        <path class="dgm-flow draw" pathLength="1" d="M450 59 H540 V140" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M450 123 H540" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M450 187 H540 V146" />
+        <!-- defaults connector -->
+        <path class="dgm-line draw d2" pathLength="1" d="M180 163 H250" stroke-dasharray="4 4"/>
+        <!-- result -->
+        <g class="pop d5"><rect class="dgm-box" x="540" y="118" width="150" height="90" rx="11"/><text class="dgm-ink" x="615" y="148" text-anchor="middle" font-size="14" font-weight="700">*Server</text><text class="dgm-muted" x="615" y="170" text-anchor="middle" font-size="11">configured</text><text class="dgm-muted" x="615" y="187" text-anchor="middle" font-size="11">&amp; ready</text></g>
+        <text class="dgm-muted" x="360" y="250" text-anchor="middle" font-size="12">each option mutates one field; the loop applies them over the defaults</text>
+      </svg>
+      <figcaption>Options are composable funcs that mutate a config in turn</figcaption>
+    </figure>
+
+    <p>The call site is now self-documenting, and the common case is trivial:</p>
+
+    <pre><code>srv := NewServer("localhost")                              // all defaults
+srv := NewServer("localhost", WithPort(9090))              // one override
+srv := NewServer("localhost",
+    WithPort(9090),
+    WithTimeout(5*time.Second),
+    WithLogger(myLogger),
+)</code></pre>
+
+    <p>Adding a new option later is a purely additive change — every existing call site keeps compiling. That's the whole payoff.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 270" role="img" aria-label="A telescoping positional constructor versus a stable variadic options signature">
+        <text class="dgm-title" x="180" y="30" text-anchor="middle" font-size="14">telescoping params</text>
+        <text class="dgm-title" x="540" y="30" text-anchor="middle" font-size="14">functional options</text>
+        <!-- telescoping: growing, breaking -->
+        <g class="pop"><rect class="dgm-box" x="20" y="50" width="320" height="40" rx="9"/><text class="dgm-muted" x="180" y="75" text-anchor="middle" font-size="12">NewServer(host, port)</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="20" y="100" width="320" height="40" rx="9"/><text class="dgm-muted" x="180" y="125" text-anchor="middle" font-size="12">NewServer(host, port, timeout)</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="20" y="150" width="320" height="40" rx="9"/><text class="dgm-muted" x="180" y="175" text-anchor="middle" font-size="11.5">NewServer(host, port, timeout, tls, log)</text></g>
+        <text class="dgm-accent" x="180" y="222" text-anchor="middle" font-size="12" font-weight="600">every change breaks callers</text>
+        <!-- options: stable -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="380" y="100" width="320" height="40" rx="9"/><text class="dgm-accent" x="540" y="125" text-anchor="middle" font-size="12.5" font-weight="600">NewServer(host, ...Option)</text></g>
+        <path class="dgm-flow draw d3" pathLength="1" d="M540 145 V185" />
+        <text class="dgm-ink" x="540" y="205" text-anchor="middle" font-size="12">signature never changes</text>
+        <text class="dgm-accent" x="540" y="225" text-anchor="middle" font-size="12" font-weight="600">new options are additive</text>
+      </svg>
+      <figcaption>A telescoping signature breaks; a variadic options signature stays put</figcaption>
+    </figure>
+
+    <h2>Why this beats the alternatives</h2>
+    <ul>
+      <li><strong>Defaults are explicit and live in one place</strong> — the constructor. There's no "is zero the default or a real value?" ambiguity.</li>
+      <li><strong>It's backward compatible by construction.</strong> New options never break callers.</li>
+      <li><strong>Call sites read like English.</strong> <code>WithTimeout(5*time.Second)</code> says exactly what it does.</li>
+      <li><strong>Required vs. optional is enforced by the signature.</strong> Required args are positional (<code>host</code>); optional ones are options. The type system makes you pass the required ones.</li>
+    </ul>
+
+    <h2>Patterns within the pattern</h2>
+    <p><strong>Validation and errors.</strong> Options can fail. Give the option a return value and have the constructor collect errors:</p>
+
+    <pre><code>type Option func(*Server) error
+
+func WithPort(port int) Option {
+    return func(s *Server) error {
+        if port &lt; 1 || port &gt; 65535 {
+            return fmt.Errorf("invalid port %d", port)
+        }
+        s.port = port
+        return nil
+    }
+}
+
+func NewServer(host string, opts ...Option) (*Server, error) {
+    s := &amp;Server{host: host, port: 8080}
+    for _, opt := range opts {
+        if err := opt(s); err != nil {
+            return nil, fmt.Errorf("server option: %w", err)
+        }
+    }
+    return s, nil
+}</code></pre>
+
+    <p>(See <a href="03-error-handling.html">post 3</a> for why we wrap with <code>%w</code>.)</p>
+
+    <p><strong>The option as an interface.</strong> For libraries that need options to carry state or be introspected, an interface works too. The standard library's gRPC bindings use this style:</p>
+
+    <pre><code>type Option interface {
+    apply(*Server)
+}
+
+type optionFunc func(*Server)
+
+func (f optionFunc) apply(s *Server) { f(s) }
+
+func WithPort(port int) Option {
+    return optionFunc(func(s *Server) { s.port = port })
+}</code></pre>
+
+    <p>This is more verbose but lets you do things like type-switch on options or define unexported options that external packages can't construct. Reach for it only when you need that power; the plain <code>func</code> version is lighter.</p>
+
+    <p><strong>Grouping options.</strong> An option can apply several others, which is handy for presets:</p>
+
+    <pre><code>func WithProductionDefaults() Option {
+    return func(s *Server) {
+        s.timeout = 60 * time.Second
+        s.logger = productionLogger()
+    }
+}</code></pre>
+
+    <h2>When <em>not</em> to use functional options</h2>
+    <p>This pattern isn't free — it's more code than a struct, and it adds a small allocation per option. Skip it when:</p>
+    <ul>
+      <li><strong>Config is large and mostly required.</strong> If a caller must set 12 fields, a config struct is clearer than 12 <code>With...</code> calls. Parsing config from a file or env? A struct that maps to your config format is the natural fit.</li>
+      <li><strong>The type is internal</strong> and you control every call site. You don't need backward-compatibility ceremony for a struct only your own package constructs — just add the field.</li>
+      <li><strong>There are only one or two optional knobs that will never grow.</strong> A struct or even an extra parameter is fine.</li>
+    </ul>
+
+    <p>A good rule of thumb: <strong>functional options earn their keep when the type is part of a public API and the set of options is expected to grow over time.</strong> That's exactly the situation they were designed for.</p>
+
+    <h2>The takeaway</h2>
+    <p>Functional options give you constructors with clean defaults, self-documenting call sites, and the freedom to add configuration later without breaking anyone. Use <code>func(*T)</code> for the simple case, add an <code>error</code> return when options can fail, and reach for the interface form only when you need introspection or unexported options. When config is large, required, or internal, a plain struct is still the better tool — don't cargo-cult the pattern where it doesn't pay.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Functional options earn their keep on public APIs whose configuration is expected to grow: defaults stay in one place, call sites read like English, and adding a knob never breaks an existing caller.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <span class="empty"></span>
+  <a href="02-interface-design.html"><div class="k">Next →</div><h4>Interface Design</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 01 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

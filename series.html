@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Shogol — Field Notes on Software</title>
-<meta name="description" content="Long-form series on how things actually work — from large language models and the systems that serve them, to the Go patterns behind production code." />
+<title>Series — Shogol</title>
+<meta name="description" content="A Shogol series, in reading order." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
 <link rel="stylesheet" href="assets/kinetic.css" />
 <script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -12,15 +12,14 @@
 <body>
 
 <div class="marq"><div class="track">
-  <span>Writing · Building · Shipping</span><span>·</span><span>Field Notes on Software</span><span>·</span><span>AI · Go · Systems</span><span>·</span>
-  <span>Writing · Building · Shipping</span><span>·</span><span>Field Notes on Software</span><span>·</span><span>AI · Go · Systems</span><span>·</span>
+  <span>The Shogol Series</span><span>·</span><span>Read Top to Bottom</span><span>·</span><span>One Idea at a Time</span><span>·</span>
+  <span>The Shogol Series</span><span>·</span><span>Read Top to Bottom</span><span>·</span><span>One Idea at a Time</span><span>·</span>
 </div></div>
 
 <header class="hdr">
-  <div class="brand">shogol<b>.</b></div>
+  <a class="brand" href="index.html">shogol<b>.</b></a>
   <nav>
-    <a class="lk" href="#feed">Latest</a>
-    <a class="lk" href="https://github.com/bshogol" target="_blank" rel="noopener">GitHub</a>
+    <a class="lk" href="index.html">All Posts</a>
     <button class="toggle" aria-label="Toggle dark mode">
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
       <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
@@ -30,25 +29,22 @@
 
 <section class="masthead">
   <div class="meta">
-    <span>THE SHOGOL JOURNAL</span>
-    <span>WRITTEN IN THE OPEN · 2026</span>
-    <span>AI · GO · SYSTEMS</span>
+    <span><a href="index.html" style="color:inherit">← THE SHOGOL JOURNAL</a></span>
+    <span id="series-meta">SERIES</span>
+    <span>READ IN ORDER</span>
   </div>
-  <h1 class="display">Field<span class="out">Notes</span><br>On <span class="fill">Software.</span></h1>
-  <p class="lede">Long-form series on how things actually work — from large language models and the engines that serve them, to the Go patterns behind production code. Read the timeline below, or pick a series.</p>
+  <h1 class="display"><span class="fill" id="series-title">Series</span></h1>
+  <p class="lede" id="series-blurb"></p>
 </section>
 
-<div class="filters" id="chips"><!-- filter chips injected by site.js --></div>
-<div id="series-cta"></div>
-
-<section class="plist" id="latest">
-  <h2 class="sec">// all posts — newest first</h2>
-  <div id="feed"><!-- timeline injected by site.js --></div>
+<section class="plist">
+  <h2 class="sec">// the series — read top to bottom</h2>
+  <div id="series-view"><!-- posts injected by site.js --></div>
 </section>
 
 <footer class="foot"><div class="in">
   <span>© 2026 SHOGOL</span>
-  <span>FIELD NOTES ON SOFTWARE</span>
+  <a href="index.html">ALL POSTS →</a>
   <span>BUILT IN THE OPEN</span>
 </div></footer>
 

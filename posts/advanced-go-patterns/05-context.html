@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Context — Shogol</title>
+<meta name="description" content="Cancellation, deadlines, propagation, and the values trap — using context.Context correctly in Go." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 05</span><span>·</span><span>Context</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 05</span><span>·</span><span>Context</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">MAR 20, 2026</span><span><b>PART 05 / 10</b></span><span>5 MIN READ</span><span>CONCURRENCY</span></div>
+  <h1 class="post-title">Context</h1>
+  <p class="post-dek">Cancellation, deadlines, propagation across goroutines — and the values trap that catches everyone at least once.</p>
+
+  <div class="prose">
+    <p><code>context.Context</code> is the thread that runs through every serious Go program: cancellation, deadlines, and request-scoped data flowing across API boundaries and goroutines. It's also widely misused — passed where it shouldn't be, stuffed with values it shouldn't carry, or ignored where it matters most.</p>
+
+    <p>Let's get it right.</p>
+
+    <h2>What context is for</h2>
+    <p>A <code>Context</code> carries two things across function calls and goroutine boundaries:</p>
+    <ol>
+      <li><strong>A cancellation signal</strong> — "stop what you're doing, the caller gave up."</li>
+      <li><strong>A deadline</strong> — "stop if you're not done by time T."</li>
+    </ol>
+    <p>Plus, secondarily and more cautiously, request-scoped values. The signal is the heart of it. Everything else is supporting cast.</p>
+    <p>The interface is small:</p>
+
+<pre><code>type Context interface {
+    Done() &lt;-chan struct{}          // closed when cancelled or deadline hits
+    Err() error                     // why Done() was closed
+    Deadline() (time.Time, bool)    // the deadline, if any
+    Value(key any) any              // request-scoped lookup
+}</code></pre>
+
+    <p><code>Done()</code> returning a channel is the key design choice: it lets you <code>select</code> on cancellation alongside your real work, which is exactly what the <a href="04-concurrency-patterns.html">concurrency patterns</a> do.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 320" role="img" aria-label="A context tree: cancelling the root propagates a closed Done() channel down to every derived child context">
+        <!-- connectors from root to children -->
+        <path class="dgm-flow draw" pathLength="1" d="M360 92 V128 H180 V160" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 92 V160" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 92 V128 H540 V160" />
+        <!-- second level under the middle child -->
+        <path class="dgm-flow draw d3" pathLength="1" d="M360 218 V246 H290 V270" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M360 218 V246 H430 V270" />
+        <!-- root -->
+        <g class="pop"><rect class="dgm-box-accent" x="270" y="40" width="180" height="52" rx="11"/><text class="dgm-accent" x="360" y="64" text-anchor="middle" font-size="15" font-weight="700">parent ctx</text><text class="dgm-muted" x="360" y="82" text-anchor="middle" font-size="11">cancel() called</text></g>
+        <!-- first level -->
+        <g class="pop d2"><rect class="dgm-box" x="100" y="160" width="160" height="52" rx="11"/><text class="dgm-ink" x="180" y="184" text-anchor="middle" font-size="14" font-weight="600">child A</text><text class="dgm-muted" x="180" y="202" text-anchor="middle" font-size="11">Done() closed</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="280" y="160" width="160" height="52" rx="11"/><text class="dgm-ink" x="360" y="184" text-anchor="middle" font-size="14" font-weight="600">child B</text><text class="dgm-muted" x="360" y="202" text-anchor="middle" font-size="11">Done() closed</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="460" y="160" width="160" height="52" rx="11"/><text class="dgm-ink" x="540" y="184" text-anchor="middle" font-size="14" font-weight="600">child C</text><text class="dgm-muted" x="540" y="202" text-anchor="middle" font-size="11">Done() closed</text></g>
+        <!-- second level grandchildren -->
+        <g class="pop d4"><rect class="dgm-box" x="210" y="270" width="160" height="46" rx="11"/><text class="dgm-ink" x="290" y="298" text-anchor="middle" font-size="13" font-weight="600">grandchild B1</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="350" y="270" width="160" height="46" rx="11"/><text class="dgm-ink" x="430" y="298" text-anchor="middle" font-size="13" font-weight="600">grandchild B2</text></g>
+      </svg>
+      <figcaption>Cancel the parent — Done() closes for every context in the subtree</figcaption>
+    </figure>
+
+    <h2>The rules</h2>
+    <p>These conventions are near-universal in Go code, and breaking them will get your PR comments:</p>
+    <ul>
+      <li><strong>Pass <code>ctx</code> as the first parameter</strong>, named <code>ctx</code>. Always: <code>func Fetch(ctx context.Context, url string) (*Response, error)</code>.</li>
+      <li><strong>Never store a Context in a struct.</strong> Pass it through the call chain. (Rare exceptions exist, but treat them as exceptions.)</li>
+      <li><strong>Don't pass <code>nil</code>.</strong> If you don't have one, use <code>context.TODO()</code> as a placeholder while you figure out the plumbing, or <code>context.Background()</code> at the true top of your program.</li>
+      <li><strong>Context flows down, never up.</strong> A function receives a context and passes derived contexts to its callees. It doesn't hand one back.</li>
+    </ul>
+
+    <h2>Deriving contexts</h2>
+    <p>You never mutate a context; you <em>derive</em> a new one from a parent. The derived context is cancelled when its parent is — cancellation propagates down the tree.</p>
+
+<pre><code>// Cancellation you trigger manually.
+ctx, cancel := context.WithCancel(parent)
+defer cancel() // ALWAYS call cancel, even on the happy path — it frees resources.
+
+// A hard deadline.
+ctx, cancel := context.WithDeadline(parent, time.Now().Add(5*time.Second))
+defer cancel()
+
+// A timeout (deadline relative to now) — the most common one.
+ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+defer cancel()</code></pre>
+
+    <p><strong>Call <code>cancel</code> every time, no exceptions.</strong> Even when the operation succeeds and even when a timeout will fire on its own. Skipping it leaks the timer and the internal goroutine until the parent is cancelled. <code>defer cancel()</code> on the line after creation is the habit to build — <code>go vet</code> will warn you if you forget.</p>
+
+    <h2>Respecting cancellation</h2>
+    <p>A context is only useful if your code actually checks it. Two ways:</p>
+    <p><strong>Pass it to functions that already honor it.</strong> Most standard-library and well-behaved third-party calls take a context and return promptly when it's cancelled. This is the easy, preferred path:</p>
+
+<pre><code>req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+resp, err := http.DefaultClient.Do(req) // aborts if ctx is cancelled</code></pre>
+
+    <p><strong>Select on <code>Done()</code> in your own loops.</strong> For work you control — especially long loops or blocking sends — check the context yourself:</p>
+
+<pre><code>func process(ctx context.Context, items []Item) error {
+    for _, item := range items {
+        select {
+        case &lt;-ctx.Done():
+            return ctx.Err() // returns context.Canceled or context.DeadlineExceeded
+        default:
+            handle(item)
+        }
+    }
+    return nil
+}</code></pre>
+
+    <p>Returning <code>ctx.Err()</code> is the convention: it surfaces <em>why</em> you stopped (cancelled vs. deadline) and plays well with <a href="03-error-handling.html"><code>errors.Is</code></a>:</p>
+
+<pre><code>if errors.Is(err, context.DeadlineExceeded) {
+    // it timed out specifically
+}</code></pre>
+
+    <h2>A complete example</h2>
+    <p>Tying it together — a timeout-bounded fetch that cleans up correctly:</p>
+
+<pre><code>func fetchWithTimeout(url string, timeout time.Duration) ([]byte, error) {
+    ctx, cancel := context.WithTimeout(context.Background(), timeout)
+    defer cancel()
+
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+    if err != nil {
+        return nil, fmt.Errorf("building request: %w", err)
+    }
+
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        // On timeout this is wrapped DeadlineExceeded.
+        return nil, fmt.Errorf("fetching %s: %w", url, err)
+    }
+    defer resp.Body.Close()
+
+    return io.ReadAll(resp.Body)
+}</code></pre>
+
+    <p>If the server is slow, the context's deadline fires, <code>Do</code> returns, the body closes, and <code>cancel</code> releases the timer. No leaks, no hung goroutines.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 220" role="img" aria-label="A deadline counting down across a call chain: the same timeout budget shrinks as it propagates from handler to client to dialer">
+        <!-- countdown bar -->
+        <path class="dgm-flow draw" pathLength="1" d="M40 50 H680" />
+        <!-- stage connectors -->
+        <path class="dgm-line draw d2" pathLength="1" d="M150 150 H230" />
+        <path class="dgm-line draw d3" pathLength="1" d="M370 150 H450" />
+        <path class="dgm-line draw d4" pathLength="1" d="M590 150 H600" />
+        <!-- budget labels along the top -->
+        <text class="dgm-muted" x="90" y="40" text-anchor="middle" font-size="12">5.0s left</text>
+        <text class="dgm-muted" x="310" y="40" text-anchor="middle" font-size="12">3.8s left</text>
+        <text class="dgm-muted" x="530" y="40" text-anchor="middle" font-size="12">1.2s left</text>
+        <text class="dgm-accent" x="680" y="40" text-anchor="end" font-size="12" font-weight="700">deadline</text>
+        <!-- stages -->
+        <g class="pop"><rect class="dgm-box-accent" x="30" y="120" width="120" height="58" rx="11"/><text class="dgm-accent" x="90" y="146" text-anchor="middle" font-size="13" font-weight="700">handler</text><text class="dgm-muted" x="90" y="165" text-anchor="middle" font-size="11">WithTimeout</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="250" y="120" width="120" height="58" rx="11"/><text class="dgm-ink" x="310" y="146" text-anchor="middle" font-size="13" font-weight="600">http client</text><text class="dgm-muted" x="310" y="165" text-anchor="middle" font-size="11">same ctx</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="470" y="120" width="120" height="58" rx="11"/><text class="dgm-ink" x="530" y="146" text-anchor="middle" font-size="13" font-weight="600">dialer</text><text class="dgm-muted" x="530" y="165" text-anchor="middle" font-size="11">same ctx</text></g>
+      </svg>
+      <figcaption>One deadline, shared down the call chain — the budget shrinks, the cutoff stays fixed</figcaption>
+    </figure>
+
+    <h2>The values trap</h2>
+    <p><code>context.WithValue</code> lets you attach request-scoped data — a request ID, a trace span, an authenticated user. It's genuinely useful and genuinely overused. The guidance:</p>
+    <ul>
+      <li><strong>Use it for request-scoped, cross-cutting data</strong> that rides along with a request: trace IDs, auth tokens, deadlines set by middleware. Things every layer might need but none should have in its signature.</li>
+      <li><strong>Do NOT use it to pass function parameters.</strong> If a function <em>needs</em> a value to do its job, that value belongs in its signature, not smuggled through the context. Context values are invisible to the type system — the compiler can't tell you when one is missing.</li>
+      <li><strong>Use a private, typed key</strong> to avoid collisions across packages:</li>
+    </ul>
+
+<pre><code>type ctxKey int
+
+const userKey ctxKey = 0
+
+func WithUser(ctx context.Context, u *User) context.Context {
+    return context.WithValue(ctx, userKey, u)
+}
+
+func UserFrom(ctx context.Context) (*User, bool) {
+    u, ok := ctx.Value(userKey).(*User)
+    return u, ok
+}</code></pre>
+
+    <p>Never use a plain <code>string</code> as the key — two packages could pick the same string and clobber each other. A private type makes the key un-forgeable from outside your package.</p>
+
+    <div class="callout">
+      <div class="k">Litmus test</div>
+      <p>If removing the value would be a <em>compile</em> error somewhere, it should be a parameter. If removing it only degrades behavior (no trace ID, a default user), the context is a reasonable home.</p>
+    </div>
+
+    <h2>The takeaway</h2>
+    <p>Context propagates cancellation and deadlines (and, carefully, request-scoped values) across your call graph. Pass it first, named <code>ctx</code>; never store it in a struct; always <code>defer cancel()</code>; and actually respect it — by handing it to context-aware calls and by <code>select</code>ing on <code>Done()</code> in your own loops. Keep values to cross-cutting request data with private typed keys, and put real parameters in signatures where the compiler can see them.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="04-concurrency-patterns.html"><div class="k">← Previous</div><h4>Concurrency Patterns</h4></a>
+  <a href="06-synchronization.html"><div class="k">Next →</div><h4>Synchronization Beyond Channels</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 05 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Synchronization Beyond Channels — Shogol</title>
+<meta name="description" content="errgroup, semaphores, singleflight, and the rest of the sync toolbox for real concurrent Go." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 06</span><span>·</span><span>Synchronization</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 06</span><span>·</span><span>Synchronization</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">APR 09, 2026</span><span><b>PART 06 / 10</b></span><span>6 MIN READ</span><span>CONCURRENCY</span></div>
+  <h1 class="post-title">Synchronization Beyond Channels</h1>
+  <p class="post-dek">errgroup, semaphores, singleflight, and the rest of the <code>sync</code> toolbox — picking the simplest primitive that fits instead of forcing everything through channels.</p>
+
+  <div class="prose">
+    <p>"Don't communicate by sharing memory; share memory by communicating" is great advice — and also frequently the wrong tool. Channels are elegant for <em>handing off</em> data, but for <em>protecting</em> shared state, coordinating completion, or limiting concurrency, the <code>sync</code> package and a few <code>golang.org/x/sync</code> extensions are simpler, faster, and clearer.</p>
+
+    <p>Knowing which tool fits which job is the mark of someone who's written real concurrent Go. Here's the toolbox.</p>
+
+    <h2>When channels are the wrong tool</h2>
+    <p>A common anti-pattern is using a channel as a lock around shared state:</p>
+
+    <pre><code>// Overcomplicated: a channel pretending to be a mutex.
+type Counter struct {
+    ch chan int
+}</code></pre>
+
+    <p>If you're protecting a piece of shared state, a <code>Mutex</code> is more direct, faster, and easier to reason about. Use channels to <em>pass ownership of data between goroutines</em>; use the <code>sync</code> primitives to <em>protect data accessed by several goroutines</em>. That distinction resolves most "channel vs. mutex" debates.</p>
+
+    <h2><code>sync.Mutex</code> — protect shared state</h2>
+    <p>The bread and butter. Lock, touch the data, unlock:</p>
+
+    <pre><code>type Counter struct {
+    mu    sync.Mutex
+    count int
+}
+
+func (c *Counter) Inc() {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    c.count++
+}
+
+func (c *Counter) Value() int {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    return c.count
+}</code></pre>
+
+    <p>Conventions that prevent pain:</p>
+    <ul>
+      <li><strong>Put the mutex right above the fields it guards</strong>, and add a comment if the scope isn't obvious. The mutex and its data are a unit.</li>
+      <li><strong><code>defer Unlock()</code> immediately after <code>Lock()</code></strong> so an early return or panic can't leave it held. (Drop the defer only in a measured hot path where it matters.)</li>
+      <li><strong>Never copy a struct containing a <code>Mutex</code>.</strong> Pass <code>*Counter</code>, not <code>Counter</code>. <code>go vet</code> catches this; listen to it.</li>
+    </ul>
+
+    <h2><code>sync.RWMutex</code> — many readers, occasional writers</h2>
+    <p>When reads vastly outnumber writes, an <code>RWMutex</code> lets readers proceed concurrently while writers get exclusive access:</p>
+
+    <pre><code>type Cache struct {
+    mu   sync.RWMutex
+    data map[string]string
+}
+
+func (c *Cache) Get(key string) (string, bool) {
+    c.mu.RLock()         // shared read lock
+    defer c.mu.RUnlock()
+    v, ok := c.data[key]
+    return v, ok
+}
+
+func (c *Cache) Set(key, value string) {
+    c.mu.Lock()          // exclusive write lock
+    defer c.mu.Unlock()
+    c.data[key] = value
+}</code></pre>
+
+    <p>Don't reach for <code>RWMutex</code> reflexively — it has more overhead than a plain <code>Mutex</code>, so it only wins when reads genuinely dominate <em>and</em> the critical section is more than trivial. Measure before assuming it's faster.</p>
+
+    <h2><code>sync.WaitGroup</code> — wait for a set of goroutines</h2>
+    <p>Coordinate "do N things, then continue." You saw this in the <a href="04-concurrency-patterns.html">concurrency post</a>; the rules:</p>
+
+    <pre><code>var wg sync.WaitGroup
+for _, url := range urls {
+    wg.Add(1)              // Add BEFORE launching the goroutine
+    go func(u string) {
+        defer wg.Done()    // Done in the goroutine, via defer
+        fetch(u)
+    }(u)
+}
+wg.Wait()                  // blocks until the counter hits zero</code></pre>
+
+    <p>Two classic mistakes: calling <code>wg.Add</code> <em>inside</em> the goroutine (a race — <code>Wait</code> might run before <code>Add</code>), and forgetting <code>defer</code> on <code>Done</code> (a panic skips it and <code>Wait</code> hangs forever).</p>
+
+    <h2><code>sync.Once</code> — exactly once</h2>
+    <p>Lazy initialization that's safe under concurrency, without a guard mutex:</p>
+
+    <pre><code>type Service struct {
+    once   sync.Once
+    client *http.Client
+}
+
+func (s *Service) Client() *http.Client {
+    s.once.Do(func() {
+        s.client = &amp;http.Client{Timeout: 10 * time.Second}
+    })
+    return s.client
+}</code></pre>
+
+    <p><code>Do</code> runs its function once, ever, even if called from many goroutines at once; the rest block until the first completes. Cleaner than a hand-rolled double-checked lock.</p>
+
+    <h2><code>errgroup</code> — WaitGroup that handles errors and cancellation</h2>
+    <p><code>golang.org/x/sync/errgroup</code> is the upgrade you'll reach for constantly. It's a <code>WaitGroup</code> that collects the first error and ties into a <a href="05-context.html">context</a>: if any goroutine fails, the shared context is cancelled so the others can bail.</p>
+
+    <pre><code>import "golang.org/x/sync/errgroup"
+
+func fetchAll(ctx context.Context, urls []string) ([][]byte, error) {
+    g, ctx := errgroup.WithContext(ctx)
+    results := make([][]byte, len(urls))
+
+    for i, url := range urls {
+        i, url := i, url // capture (pre-1.22; harmless after)
+        g.Go(func() error {
+            data, err := fetch(ctx, url)
+            if err != nil {
+                return err // cancels ctx, signaling the others to stop
+            }
+            results[i] = data // safe: each goroutine writes a distinct index
+            return nil
+        })
+    }
+
+    if err := g.Wait(); err != nil {
+        return nil, err // the first error any goroutine returned
+    }
+    return results, nil
+}</code></pre>
+
+    <p>Note there's no mutex around <code>results</code>: each goroutine writes a <em>different</em> index, so there's no shared access to protect. That's a clean way to gather results in parallel.</p>
+
+    <p><code>errgroup</code> also caps concurrency, turning it into a tidy bounded worker pool:</p>
+
+    <pre><code>g, ctx := errgroup.WithContext(ctx)
+g.SetLimit(10) // at most 10 running at once
+for _, job := range jobs {
+    job := job
+    g.Go(func() error { return process(ctx, job) })
+}
+err := g.Wait()</code></pre>
+
+    <p>For most "run these N tasks concurrently, stop on first error, cap the parallelism" needs, <code>errgroup</code> beats a hand-built channel-and-WaitGroup pool.</p>
+
+    <h2>Semaphores — limit concurrency without a pool</h2>
+    <p>When you want to bound concurrency but keep your existing goroutine structure, a weighted semaphore (<code>golang.org/x/sync/semaphore</code>) gates access to a resource:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 300" role="img" aria-label="A weighted semaphore with three slots gating a queue of tasks: three run concurrently while the rest wait to acquire a slot">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">semaphore.NewWeighted(3) — three slots, the rest wait</text>
+
+        <!-- waiting queue -->
+        <text class="dgm-muted" x="105" y="78" text-anchor="middle" font-size="12">waiting tasks</text>
+        <g class="pop"><rect class="dgm-box" x="40" y="92" width="130" height="34" rx="8"/><text class="dgm-ink" x="105" y="114" text-anchor="middle" font-size="13">task 4</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="40" y="134" width="130" height="34" rx="8"/><text class="dgm-ink" x="105" y="156" text-anchor="middle" font-size="13">task 5</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="40" y="176" width="130" height="34" rx="8"/><text class="dgm-ink" x="105" y="198" text-anchor="middle" font-size="13">task 6</text></g>
+
+        <!-- acquire flow into the gate -->
+        <path class="dgm-flow draw" pathLength="1" d="M170 143 H260" />
+        <text class="dgm-muted" x="215" y="134" text-anchor="middle" font-size="11">Acquire(1)</text>
+
+        <!-- the gate / 3 slots -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="262" y="80" width="156" height="130" rx="12"/></g>
+        <text class="dgm-accent" x="340" y="74" text-anchor="middle" font-size="12" font-weight="700">3 slots</text>
+        <g class="pop d3"><circle class="dgm-box-accent" cx="300" cy="120" r="14"/><circle class="dgm-box-accent" cx="340" cy="120" r="14"/><circle class="dgm-box-accent" cx="380" cy="120" r="14"/></g>
+        <text class="dgm-muted" x="340" y="190" text-anchor="middle" font-size="11">held = 3 · full</text>
+
+        <!-- release back -->
+        <path class="dgm-line draw d4" pathLength="1" d="M340 210 V250 H215 V172" stroke-dasharray="4 4"/>
+        <text class="dgm-muted" x="288" y="244" text-anchor="middle" font-size="11">Release(1)</text>
+
+        <!-- running -->
+        <path class="dgm-flow draw d3" pathLength="1" d="M418 145 H510" />
+        <text class="dgm-muted" x="464" y="136" text-anchor="middle" font-size="11">go run</text>
+        <text class="dgm-muted" x="612" y="78" text-anchor="middle" font-size="12">running now</text>
+        <g class="pop d3"><rect class="dgm-box" x="512" y="92" width="160" height="34" rx="8"/><text class="dgm-ink" x="592" y="114" text-anchor="middle" font-size="13">task 1 · process</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="512" y="134" width="160" height="34" rx="8"/><text class="dgm-ink" x="592" y="156" text-anchor="middle" font-size="13">task 2 · process</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="512" y="176" width="160" height="34" rx="8"/><text class="dgm-ink" x="592" y="198" text-anchor="middle" font-size="13">task 3 · process</text></g>
+      </svg>
+      <figcaption>The semaphore caps in-flight work at the weight — finishing a task releases a slot the next can acquire</figcaption>
+    </figure>
+
+    <pre><code>import "golang.org/x/sync/semaphore"
+
+sem := semaphore.NewWeighted(3) // 3 slots
+
+for _, task := range tasks {
+    if err := sem.Acquire(ctx, 1); err != nil {
+        break // context cancelled
+    }
+    go func(t Task) {
+        defer sem.Release(1)
+        process(t)
+    }(task)
+}</code></pre>
+
+    <p>A buffered channel can serve as a simple counting semaphore too (<code>make(chan struct{}, 3)</code>), but the <code>semaphore</code> package handles context cancellation and weighted acquisition for you.</p>
+
+    <h2><code>singleflight</code> — collapse duplicate work</h2>
+    <p>A gem for caches and hot paths. <code>golang.org/x/sync/singleflight</code> ensures that concurrent calls for the <em>same key</em> result in only one actual execution; everyone else waits and shares the result. Perfect for preventing a "cache stampede" when a popular key expires and a thousand requests all try to recompute it at once:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 260" role="img" aria-label="Singleflight collapses three concurrent calls for the same key into one execution, then fans the single result back to all callers">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">group.Do("user:42") — one execution, shared result</text>
+
+        <!-- callers -->
+        <g class="pop"><rect class="dgm-box" x="30" y="60" width="150" height="34" rx="8"/><text class="dgm-ink" x="105" y="82" text-anchor="middle" font-size="13">caller A</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="30" y="108" width="150" height="34" rx="8"/><text class="dgm-ink" x="105" y="130" text-anchor="middle" font-size="13">caller B</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="30" y="156" width="150" height="34" rx="8"/><text class="dgm-ink" x="105" y="178" text-anchor="middle" font-size="13">caller C</text></g>
+
+        <!-- collapse into one -->
+        <path class="dgm-flow draw" pathLength="1" d="M180 77 H300 V125" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M180 125 H300" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M180 173 H300 V125" />
+
+        <!-- the single in-flight call -->
+        <g class="pop d3"><rect class="dgm-box-accent" x="302" y="100" width="170" height="50" rx="11"/><text class="dgm-accent" x="387" y="120" text-anchor="middle" font-size="13" font-weight="700">one call</text><text class="dgm-muted" x="387" y="138" text-anchor="middle" font-size="11">loadUserFromDB</text></g>
+
+        <!-- to db -->
+        <path class="dgm-flow draw d4" pathLength="1" d="M472 125 H560" />
+        <g class="pop d4"><rect class="dgm-box" x="562" y="100" width="128" height="50" rx="11"/><text class="dgm-ink" x="626" y="129" text-anchor="middle" font-size="13">database</text></g>
+
+        <!-- shared result fans back -->
+        <path class="dgm-line draw d4" pathLength="1" d="M387 150 V210 H105 V194" stroke-dasharray="4 4"/>
+        <text class="dgm-muted" x="300" y="228" text-anchor="middle" font-size="11">same (*User, err) returned to every caller</text>
+      </svg>
+      <figcaption>Duplicate concurrent calls for one key collapse to a single execution — no stampede on the database</figcaption>
+    </figure>
+
+    <pre><code>import "golang.org/x/sync/singleflight"
+
+var group singleflight.Group
+
+func getUser(ctx context.Context, id string) (*User, error) {
+    v, err, _ := group.Do(id, func() (any, error) {
+        return loadUserFromDB(ctx, id) // runs once per id, even under a stampede
+    })
+    if err != nil {
+        return nil, err
+    }
+    return v.(*User), nil
+}</code></pre>
+
+    <h2>Atomics — lock-free counters and flags</h2>
+    <p>For simple scalar operations — counters, flags — <code>sync/atomic</code> (with the typed wrappers) avoids locking entirely:</p>
+
+    <pre><code>var requests atomic.Int64
+
+func handle() {
+    requests.Add(1)
+}
+
+func count() int64 {
+    return requests.Load()
+}</code></pre>
+
+    <p>The typed atomics (<code>atomic.Int64</code>, <code>atomic.Bool</code>, <code>atomic.Pointer[T]</code>) are clearer and harder to misuse than the older free functions. Reach for atomics only for genuinely simple shared scalars; anything involving multiple related fields wants a mutex so the updates stay consistent together.</p>
+
+    <h2>Choosing the right tool</h2>
+
+    <pre><code>   need…                                  reach for…
+   ─────────────────────────────────────────────────────────────
+   hand data between goroutines           a channel
+   protect shared state                   sync.Mutex
+   read-heavy shared state                sync.RWMutex
+   wait for N goroutines                  sync.WaitGroup
+   run-once init                          sync.Once
+   N tasks, stop on error, cap concurrency errgroup (with SetLimit)
+   bound concurrency, keep your structure  semaphore (or buffered chan)
+   dedupe concurrent identical work        singleflight
+   a shared counter or flag                sync/atomic</code></pre>
+
+    <h2>The takeaway</h2>
+    <p>Channels are for <em>handing off</em> data; the <code>sync</code> family is for <em>protecting</em> it and <em>coordinating</em> goroutines. Use <code>Mutex</code>/<code>RWMutex</code> for shared state, <code>WaitGroup</code> to wait, <code>Once</code> for lazy init, atomics for simple counters — and lean on the <code>x/sync</code> extensions (<code>errgroup</code>, <code>semaphore</code>, <code>singleflight</code>) for the higher-level patterns. Picking the simplest primitive that fits, rather than forcing everything through channels, is what makes concurrent Go readable.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Channels hand off ownership; the <code>sync</code> family protects and coordinates. The skill is reaching for the smallest primitive that fits the job — not running every problem through a channel.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="05-context.html"><div class="k">← Previous</div><h4>Context</h4></a>
+  <a href="07-generics.html"><div class="k">Next →</div><h4>Generics</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 06 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>

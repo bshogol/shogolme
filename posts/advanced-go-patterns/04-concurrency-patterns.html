@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Concurrency Patterns — Shogol</title>
+<meta name="description" content="Pipelines, fan-in/fan-out, and worker pools done right — the three workhorse concurrency patterns and the rules that keep them leak-free." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 04</span><span>·</span><span>Concurrency Patterns</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 04</span><span>·</span><span>Concurrency Patterns</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">MAR 07, 2026</span><span><b>PART 04 / 10</b></span><span>6 MIN READ</span><span>CONCURRENCY</span></div>
+  <h1 class="post-title">Concurrency Patterns</h1>
+  <p class="post-dek">Pipelines, fan-in/fan-out, and worker pools done right — the three workhorses of concurrent Go, plus the discipline that keeps them leak-free.</p>
+
+  <div class="prose">
+    <p>Go made concurrency approachable — <code>go f()</code> and you're off. It also made it easy to leak goroutines, deadlock, and race. The difference between the two outcomes is knowing a handful of patterns and the rules that keep them safe.</p>
+
+    <p>This post covers the three workhorses — pipelines, fan-out/fan-in, and worker pools — and the discipline that makes all of them leak-free. It leans on <a href="05-context.html">context</a> for cancellation, so skim that if <code>ctx</code> is unfamiliar.</p>
+
+    <h2>The two rules that prevent most bugs</h2>
+    <p>Before any pattern, internalize these:</p>
+    <ol>
+      <li><strong>Whoever creates a goroutine is responsible for ending it.</strong> A goroutine with no exit path is a leak. Every <code>go</code> needs an answer to "how does this stop?"</li>
+      <li><strong>The sender closes the channel, never the receiver.</strong> Closing a channel says "no more values are coming," which only the sender can know. Closing from the receive side, or closing twice, panics.</li>
+    </ol>
+    <p>Most concurrency bugs in Go are a violation of one of these. The patterns below are really just disciplined ways to honor them.</p>
+
+    <h2>Pattern 1: Pipelines</h2>
+    <p>A pipeline is a series of stages connected by channels, each stage a goroutine that receives from an inbound channel, does work, and sends to an outbound one.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 200" role="img" aria-label="A pipeline: a generator stage sends over a channel to a square stage, which sends over a channel to the consumer; a cancellation context unwinds every stage">
+        <!-- channel connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M180 90 H250" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M440 90 H510" />
+        <!-- channel labels -->
+        <text class="dgm-muted" x="215" y="78" text-anchor="middle" font-size="11" font-family="'JetBrains Mono'">chan</text>
+        <text class="dgm-muted" x="475" y="78" text-anchor="middle" font-size="11" font-family="'JetBrains Mono'">chan</text>
+        <!-- gen stage -->
+        <g class="pop"><rect class="dgm-box" x="40" y="62" width="140" height="56" rx="11"/><text class="dgm-ink" x="110" y="87" text-anchor="middle" font-size="15" font-weight="700">gen</text><text class="dgm-muted" x="110" y="106" text-anchor="middle" font-size="11">produce</text></g>
+        <!-- square stage -->
+        <g class="pop d2"><rect class="dgm-box" x="250" y="62" width="190" height="56" rx="11"/><text class="dgm-ink" x="345" y="87" text-anchor="middle" font-size="15" font-weight="700">square</text><text class="dgm-muted" x="345" y="106" text-anchor="middle" font-size="11">transform · n * n</text></g>
+        <!-- consumer -->
+        <g class="pop d3"><rect class="dgm-box-accent" x="510" y="62" width="170" height="56" rx="11"/><text class="dgm-accent" x="595" y="87" text-anchor="middle" font-size="15" font-weight="700">consumer</text><text class="dgm-muted" x="595" y="106" text-anchor="middle" font-size="11">range over out</text></g>
+        <!-- cancellation -->
+        <path class="dgm-line draw d4" pathLength="1" d="M110 150 H595" stroke-dasharray="4 4"/>
+        <path class="dgm-line draw d4" pathLength="1" d="M110 118 V150" stroke-dasharray="4 4"/>
+        <path class="dgm-line draw d4" pathLength="1" d="M345 118 V150" stroke-dasharray="4 4"/>
+        <path class="dgm-line draw d4" pathLength="1" d="M595 118 V150" stroke-dasharray="4 4"/>
+        <g class="pop d5"><text class="dgm-accent" x="360" y="180" text-anchor="middle" font-size="12" font-weight="600" font-family="'JetBrains Mono'">ctx.Done() unwinds every stage</text></g>
+      </svg>
+      <figcaption>A pipeline — stages joined by channels, cancellation threaded through all of them</figcaption>
+    </figure>
+
+    <pre><code>// Stage 1: produce numbers.
+func gen(ctx context.Context, nums ...int) &lt;-chan int {
+    out := make(chan int)
+    go func() {
+        defer close(out) // sender closes
+        for _, n := range nums {
+            select {
+            case out &lt;- n:
+            case &lt;-ctx.Done(): // honor cancellation
+                return
+            }
+        }
+    }()
+    return out
+}
+
+// Stage 2: square each number.
+func square(ctx context.Context, in &lt;-chan int) &lt;-chan int {
+    out := make(chan int)
+    go func() {
+        defer close(out)
+        for n := range in {
+            select {
+            case out &lt;- n * n:
+            case &lt;-ctx.Done():
+                return
+            }
+        }
+    }()
+    return out
+}</code></pre>
+
+    <p>Compose them by passing one stage's output into the next:</p>
+
+    <pre><code>ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+for n := range square(ctx, gen(ctx, 1, 2, 3, 4)) {
+    fmt.Println(n) // 1 4 9 16
+}</code></pre>
+
+    <p>Note the directional channel types: <code>&lt;-chan int</code> (receive-only) in returns, <code>chan&lt;-</code> where you only send. The compiler enforces the data-flow direction for you — use them; they're free documentation and a real safety net.</p>
+
+    <p>The <code>select</code> with <code>ctx.Done()</code> in every send is what makes the pipeline <em>cancellable</em>. Without it, if the consumer stops reading early, the producer blocks forever on <code>out &lt;-</code> and leaks. With it, cancelling the context unwinds every stage cleanly.</p>
+
+    <h2>Pattern 2: Fan-out / fan-in</h2>
+    <p>When one stage is the bottleneck, <strong>fan out</strong>: run several copies of it reading from the same input channel. Then <strong>fan in</strong>: merge their outputs back into one.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 280" role="img" aria-label="Fan-out and fan-in: one source channel feeds three identical workers reading the same channel, whose outputs merge back into a single sink">
+        <!-- source -->
+        <g class="pop"><rect class="dgm-box" x="30" y="110" width="130" height="56" rx="11"/><text class="dgm-ink" x="95" y="135" text-anchor="middle" font-size="15" font-weight="700">source</text><text class="dgm-muted" x="95" y="154" text-anchor="middle" font-size="11">one channel</text></g>
+        <!-- fan-out connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M160 138 C220 138 220 60 290 60" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M160 138 H290" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M160 138 C220 138 220 216 290 216" />
+        <!-- workers -->
+        <g class="pop d2"><rect class="dgm-box" x="290" y="34" width="140" height="50" rx="11"/><text class="dgm-ink" x="360" y="65" text-anchor="middle" font-size="14" font-weight="600">worker w1</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="290" y="113" width="140" height="50" rx="11"/><text class="dgm-ink" x="360" y="144" text-anchor="middle" font-size="14" font-weight="600">worker w2</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="290" y="192" width="140" height="50" rx="11"/><text class="dgm-ink" x="360" y="223" text-anchor="middle" font-size="14" font-weight="600">worker w3</text></g>
+        <!-- fan-in connectors -->
+        <path class="dgm-flow draw d3" pathLength="1" d="M430 59 C490 59 490 138 560 138" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M430 138 H560" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M430 217 C490 217 490 138 560 138" />
+        <!-- merged sink -->
+        <g class="pop d5"><rect class="dgm-box-accent" x="560" y="110" width="130" height="56" rx="11"/><text class="dgm-accent" x="625" y="135" text-anchor="middle" font-size="15" font-weight="700">merge</text><text class="dgm-muted" x="625" y="154" text-anchor="middle" font-size="11">one channel</text></g>
+        <!-- labels -->
+        <text class="dgm-muted" x="215" y="262" text-anchor="middle" font-size="11" font-family="'JetBrains Mono'">FAN OUT</text>
+        <text class="dgm-muted" x="500" y="262" text-anchor="middle" font-size="11" font-family="'JetBrains Mono'">FAN IN</text>
+      </svg>
+      <figcaption>Fan-out / fan-in — one source, N workers on the same channel, merged back into one sink</figcaption>
+    </figure>
+
+    <pre><code>// Fan-in: merge multiple channels into one.
+func merge[T any](ctx context.Context, cs ...&lt;-chan T) &lt;-chan T {
+    out := make(chan T)
+    var wg sync.WaitGroup
+    wg.Add(len(cs))
+    for _, c := range cs {
+        go func(c &lt;-chan T) {
+            defer wg.Done()
+            for v := range c {
+                select {
+                case out &lt;- v:
+                case &lt;-ctx.Done():
+                    return
+                }
+            }
+        }(c)
+    }
+    // Close out once all input channels are drained.
+    go func() {
+        wg.Wait()
+        close(out)
+    }()
+    return out
+}</code></pre>
+
+    <pre><code>in := gen(ctx, 1, 2, 3, 4, 5, 6, 7, 8)
+
+// Fan out to 3 workers, all reading the same channel.
+w1 := square(ctx, in)
+w2 := square(ctx, in)
+w3 := square(ctx, in)
+
+// Fan in their results.
+for n := range merge(ctx, w1, w2, w3) {
+    fmt.Println(n)
+}</code></pre>
+
+    <p>Multiple goroutines reading from the same channel is safe and is exactly how you distribute work — the runtime hands each value to whichever worker is ready. The <code>sync.WaitGroup</code> here solves the "who closes the merged channel?" problem: close it once, after all senders finish.</p>
+
+    <h2>Pattern 3: Worker pools</h2>
+    <p>Fan-out spins up a goroutine per stage instance. A <strong>worker pool</strong> is the bounded version: a fixed number of long-lived workers pulling jobs off a shared queue. Use it when you want to cap concurrency — e.g. don't open 10,000 simultaneous connections to a database.</p>
+
+    <pre><code>func process(ctx context.Context, jobs &lt;-chan Job, numWorkers int) &lt;-chan Result {
+    results := make(chan Result)
+    var wg sync.WaitGroup
+    wg.Add(numWorkers)
+
+    for i := 0; i &lt; numWorkers; i++ {
+        go func() {
+            defer wg.Done()
+            for job := range jobs { // each worker pulls until jobs is closed
+                select {
+                case results &lt;- doWork(job):
+                case &lt;-ctx.Done():
+                    return
+                }
+            }
+        }()
+    }
+
+    go func() {
+        wg.Wait()
+        close(results)
+    }()
+    return results
+}</code></pre>
+
+    <p>The pool size is your concurrency limit. <code>numWorkers</code> tuned to CPU count suits CPU-bound work; for I/O-bound work you can go much higher. (For the common case of "run N tasks with a concurrency cap and collect errors," reach for <code>errgroup</code> with <code>SetLimit</code> from <a href="06-synchronization.html">post 6</a> — it's less boilerplate than a hand-rolled pool.)</p>
+
+    <h2>The leak you will write at least once</h2>
+    <p>Here's the classic. A function launches a goroutine to do work, the caller times out and moves on, and the goroutine blocks forever trying to send to a channel nobody is reading:</p>
+
+    <pre><code>// LEAKY: if the caller stops reading, this goroutine blocks on `ch &lt;-` forever.
+func leaky() &lt;-chan int {
+    ch := make(chan int)
+    go func() {
+        ch &lt;- expensiveComputation() // blocks forever if no one receives
+    }()
+    return ch
+}</code></pre>
+
+    <p>Two standard fixes:</p>
+
+    <pre><code>// Fix A: a buffered channel of size 1 — the goroutine can always send and exit.
+func fixedBuffer() &lt;-chan int {
+    ch := make(chan int, 1) // buffer absorbs the send
+    go func() {
+        ch &lt;- expensiveComputation()
+    }()
+    return ch
+}
+
+// Fix B: select on context, so the goroutine exits when the caller gives up.
+func fixedContext(ctx context.Context) &lt;-chan int {
+    ch := make(chan int)
+    go func() {
+        select {
+        case ch &lt;- expensiveComputation():
+        case &lt;-ctx.Done():
+        }
+    }()
+    return ch
+}</code></pre>
+
+    <p>A buffered channel sized to the number of sends is the simplest cure for fire-and-forget results; context cancellation is the general one.</p>
+
+    <h2>Detecting problems</h2>
+    <ul>
+      <li><strong>Always run tests with <code>-race</code>.</strong> The race detector catches concurrent unsynchronized access. It's the single best tool you have; wire it into CI.</li>
+      <li><strong>Watch goroutine counts.</strong> A steadily climbing <code>runtime.NumGoroutine()</code> (or the <code>/debug/pprof/goroutine</code> profile) is the signature of a leak.</li>
+      <li><strong>Prefer the standard tools to clever channel gymnastics.</strong> <code>errgroup</code>, <code>sync.WaitGroup</code>, and a bounded worker pool cover the vast majority of real needs. Elaborate channel choreography is usually a sign you want one of those instead.</li>
+    </ul>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Three patterns cover most concurrent Go: pipelines (stages joined by channels), fan-out/fan-in (parallelize a bottleneck, then merge), and worker pools (bounded concurrency over a job queue). Make all of them safe with two rules — the creator of a goroutine owns its shutdown, and only senders close channels — plus a <code>select</code> on <code>ctx.Done()</code> in every blocking send. Test with <code>-race</code>, watch your goroutine count, and lean on the standard library before inventing channel acrobatics.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="03-error-handling.html"><div class="k">← Previous</div><h4>Error Handling</h4></a>
+  <a href="05-context.html"><div class="k">Next →</div><h4>Context</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 04 / 10</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>
