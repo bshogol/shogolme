@@ -32,3 +32,17 @@
   if (document.readyState !== 'loading') reveal();
   else document.addEventListener('DOMContentLoaded', reveal);
 })();
+
+/* ---- Vercel Web Analytics (static-site injection — no npm, no build) ----
+   Loads /_vercel/insights/script.js, which Vercel serves only once Web
+   Analytics is enabled for the project in the dashboard. Skipped on
+   localhost/file:// so local dev doesn't 404. */
+(function () {
+  if (location.protocol === 'file:' ||
+      /^(localhost$|127\.|0\.0\.0\.0)/.test(location.hostname)) return;
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  var s = document.createElement('script');
+  s.defer = true;
+  s.src = '/_vercel/insights/script.js';
+  document.head.appendChild(s);
+})();
