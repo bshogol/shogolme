@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>What Is a Large Language Model? — Shogol</title>
+<meta name="description" content="A large language model just predicts the next token — and that one idea, scaled up, turned into knowledge, reasoning, and skill." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 02</span><span>·</span><span>What Is a Large Language Model?</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 02</span><span>·</span><span>What Is a Large Language Model?</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 02 / 15</b></span><span>6 MIN READ</span><span>FOUNDATIONS</span></div>
+  <h1 class="post-title">What Is a Large Language Model?</h1>
+  <p class="post-dek">A model only ever learns to predict the next token — but doing that well across all of human writing forces it to absorb grammar, facts, reasoning, and a rough physics of the world.</p>
+
+  <div class="prose">
+    <p>In post #1 I promised that one idea carries most of the weight:</p>
+
+    <blockquote><p>A large language model predicts what text comes next.</p></blockquote>
+
+    <p>Now let's take that seriously, because once you really believe it, a lot of mysterious behavior suddenly makes sense — including the model's failures.</p>
+
+    <h2>The autocomplete that ate the world</h2>
+    <p>You already use a tiny language model every day. Your phone's keyboard suggests the next word as you type. Type "I'll be there in five" and it offers "minutes." That keyboard is doing exactly what a large language model does, just with a laughably small brain and a short memory.</p>
+
+    <p>A large language model is the same idea scaled up by a factor of millions:</p>
+    <ul>
+      <li>Instead of looking at the last word or two, it looks at <em>thousands</em> of words of context.</li>
+      <li>Instead of a few simple rules, it has hundreds of billions of tunable numbers ("parameters") that encode patterns learned from a huge slice of the internet, books, and code.</li>
+      <li>Instead of suggesting one likely word, it produces a full probability distribution over <em>every possible next token</em>, then picks from it.</li>
+    </ul>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 300" role="img" aria-label="A probability distribution over candidate next tokens for the prompt 'The capital of France is', with Paris by far the most likely">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">"The capital of France is ___"</text>
+        <text class="dgm-muted" x="360" y="50" text-anchor="middle" font-size="12">P(next token)</text>
+        <!-- baseline -->
+        <path class="dgm-line draw" pathLength="1" d="M150 240 H660" />
+        <!-- bars -->
+        <g class="pop"><rect class="dgm-box-accent" x="170" y="86" width="84" height="154" rx="6"/><text class="dgm-accent" x="212" y="262" text-anchor="middle" font-size="13" font-weight="700">" Paris"</text><text class="dgm-accent" x="212" y="78" text-anchor="middle" font-size="12" font-weight="700">0.71</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="278" y="174" width="84" height="66" rx="6"/><text class="dgm-muted" x="320" y="262" text-anchor="middle" font-size="13">" the"</text><text class="dgm-muted" x="320" y="166" text-anchor="middle" font-size="12">0.09</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="386" y="196" width="84" height="44" rx="6"/><text class="dgm-muted" x="428" y="262" text-anchor="middle" font-size="13">" a"</text><text class="dgm-muted" x="428" y="188" text-anchor="middle" font-size="12">0.05</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="494" y="210" width="84" height="30" rx="6"/><text class="dgm-muted" x="536" y="262" text-anchor="middle" font-size="13">" home"</text><text class="dgm-muted" x="536" y="202" text-anchor="middle" font-size="12">0.02</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="602" y="222" width="58" height="18" rx="6"/><text class="dgm-muted" x="631" y="262" text-anchor="middle" font-size="11">…rest</text><text class="dgm-muted" x="631" y="214" text-anchor="middle" font-size="12">0.13</text></g>
+      </svg>
+      <figcaption>Every step is a probability distribution over the whole vocabulary — then one token is sampled</figcaption>
+    </figure>
+
+    <p>Here's the loop, in pseudocode:</p>
+
+    <pre><code>text = "The capital of France is"
+while not done:
+    probabilities = model(text)        # a score for every possible next token
+    next_token = pick_from(probabilities)
+    text = text + next_token           # append and repeat</code></pre>
+
+    <p>Run that loop and you get:</p>
+
+    <pre><code>"The capital of France is"      → " Paris"
+"The capital of France is Paris" → "."
+...</code></pre>
+
+    <p>This is called <strong>autoregression</strong>: each new token is fed back in to help predict the next one. The model writes by reading what it has written so far. We'll come back to this loop again and again — it's the beating heart of inference (post #6).</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 230" role="img" aria-label="The autoregressive loop: the running text feeds the model, which predicts the next token, which is appended back to the text">
+        <!-- text box -->
+        <g class="pop"><rect class="dgm-box" x="40" y="84" width="200" height="62" rx="11"/><text class="dgm-ink" x="140" y="110" text-anchor="middle" font-size="14" font-weight="600">running text</text><text class="dgm-muted" x="140" y="130" text-anchor="middle" font-size="11">"…of France is"</text></g>
+        <!-- model -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="320" y="80" width="170" height="70" rx="11"/><text class="dgm-accent" x="405" y="110" text-anchor="middle" font-size="15" font-weight="700">the model</text><text class="dgm-accent" x="405" y="130" text-anchor="middle" font-size="11">predicts P(next)</text></g>
+        <!-- next token -->
+        <g class="pop d3"><rect class="dgm-box" x="560" y="84" width="130" height="62" rx="11"/><text class="dgm-ink" x="625" y="110" text-anchor="middle" font-size="14" font-weight="600">next token</text><text class="dgm-muted" x="625" y="130" text-anchor="middle" font-size="11">" Paris"</text></g>
+        <!-- forward arrows -->
+        <path class="dgm-flow draw" pathLength="1" d="M240 115 H318" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M490 115 H558" />
+        <polygon class="dgm-accent" points="318,115 308,110 308,120"/>
+        <polygon class="dgm-accent" points="558,115 548,110 548,120"/>
+        <!-- feedback loop: append back -->
+        <path class="dgm-flow draw d3" pathLength="1" d="M625 146 V196 H140 V146" />
+        <polygon class="dgm-accent" points="140,146 135,156 145,156"/>
+        <text class="dgm-muted" x="382" y="214" text-anchor="middle" font-size="12">append &amp; repeat</text>
+      </svg>
+      <figcaption>Autoregression — each predicted token is appended and fed straight back in</figcaption>
+    </figure>
+
+    <h2>Why next-token prediction is secretly profound</h2>
+    <p>"Okay," you might say, "but autocomplete isn't <em>intelligence</em>." Here's the leap that surprised the whole field.</p>
+
+    <p>To predict the next word <em>really well</em>, across all of human writing, you are forced to learn an enormous amount about the world. Consider what it takes to finish these:</p>
+    <ul>
+      <li>"The opposite of hot is ___" → you need a concept of antonyms.</li>
+      <li>"2 + 2 = ___" → you need arithmetic.</li>
+      <li>"She poured water into the cup until it was ___" → you need physical intuition.</li>
+      <li>"The detective realized the butler was lying because ___" → you need a model of motivation and plot.</li>
+      <li>"<code>def factorial(n): return ___</code>" → you need to understand code.</li>
+    </ul>
+
+    <p>There is no separate "knowledge module" the model consults. The <em>only</em> objective it was ever trained on is "predict the next token," and yet, to do that well across billions of examples, it had to absorb grammar, facts, reasoning patterns, coding conventions, and a rough physics of everyday life. Capability emerged as a <em>side effect</em> of getting really good at autocomplete. That's the whole surprise of the modern era of AI in one sentence.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Knowledge, reasoning, and skill were never trained for directly. They emerged as side effects of one objective — predict the next token — pursued well enough, across enough of humanity's writing.</p>
+    </div>
+
+    <h2>What "large" actually means</h2>
+    <p>The "large" in LLM refers mostly to two numbers:</p>
+    <ol>
+      <li><strong>Parameters</strong> — the tunable weights inside the network. Modern frontier models have hundreds of billions to trillions of them. Each one is just a number; collectively they store everything the model "knows."</li>
+      <li><strong>Training data</strong> — the amount of text the model learned from, measured in <em>tokens</em>. Frontier models train on trillions of tokens: a meaningful fraction of the high-quality public text that exists.</li>
+    </ol>
+
+    <p>A rough intuition: parameters are the <em>size of the brain</em>, training tokens are the <em>amount of experience</em>. Both matter, and there's a sweet spot between them — a famous line of research (the "scaling laws") showed that for a given compute budget there's an optimal balance, and that for a long time models were actually too big and under-trained.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 300" role="img" aria-label="A scaling-law curve: capability rises smoothly with scale, with diminishing but real returns">
+        <!-- axes -->
+        <path class="dgm-line draw" pathLength="1" d="M90 40 V250 H660" />
+        <polygon class="dgm-muted" points="90,40 85,52 95,52"/>
+        <polygon class="dgm-muted" points="660,250 648,245 648,255"/>
+        <text class="dgm-muted" x="40" y="50" font-size="12">capability</text>
+        <text class="dgm-muted" x="500" y="278" font-size="12">scale (params × data × compute)</text>
+        <!-- curve: log-like, smooth, diminishing returns -->
+        <path class="dgm-flow draw d2" pathLength="1" d="M100 240 C 200 232, 250 200, 320 160 S 470 100, 560 80 S 640 66, 650 62" />
+        <text class="dgm-accent" x="430" y="108" font-size="12" font-weight="600">diminishing but real returns</text>
+      </svg>
+      <figcaption>The scaling curve — eerily smooth and predictable, which is why so much money flowed in</figcaption>
+    </figure>
+
+    <p>The eerie thing about that curve is how <em>smooth</em> and <em>predictable</em> it has been. For years, pouring in more scale reliably bought more capability. That predictability is a big part of why so much money flowed into the field.</p>
+
+    <h2>What the model is <em>not</em></h2>
+    <p>This is the most useful section in the post, because misunderstanding it is the source of nearly every "AI is dumb" and "AI is magic" hot take.</p>
+    <ul>
+      <li><strong>It is not a database.</strong> It cannot quote a source it saw once. It compressed the patterns of its training data into weights, losing the originals. Ask it for an exact quote or an obscure citation and it may <em>confabulate</em> — generate something that has the right shape but is false. This isn't lying; it's the model doing its only job (producing plausible next tokens) in a situation where plausible and true have come apart.</li>
+      <li><strong>It has no memory between conversations</strong> by default. Each request is, to the raw model, a blank slate plus whatever text you put in front of it right now. Everything that feels like memory is the harness re-feeding earlier text (posts #10 and #14).</li>
+      <li><strong>It doesn't know what it doesn't know.</strong> Confidence in the output is not calibrated to truth. A model can be equally fluent whether it's right or hallucinating. Managing this is a central theme of the back half of the series.</li>
+      <li><strong>It doesn't run code or browse the web</strong> on its own. A bare model only emits text. Connecting it to the world is something we bolt on (post #11).</li>
+    </ul>
+
+    <p>Hold these close. Most "gotcha" failures you'll see online are just the model behaving exactly as a next-token predictor should, used in a situation that demanded something else.</p>
+
+    <h2>A useful mental image</h2>
+    <p>Picture a staggeringly well-read improviser. They've absorbed a huge fraction of everything ever written, but they have no notes in front of them and no way to check anything. You hand them a script that cuts off mid-sentence, and their job is to continue it in the most fitting way possible, instantly, one word at a time, never looking back to edit.</p>
+
+    <p>That improviser is astonishing at fluent, on-pattern continuation and genuinely weak at precise recall, arithmetic done silently in their head, or admitting "I don't know." Almost everything we build in the rest of this series — tools, retrieval, harnesses, agents — exists to compensate for the improviser's weaknesses while exploiting their strengths.</p>
+
+    <p>Next, we get concrete about the very first step in that pipeline: how your text gets chopped into the tokens the model actually sees. It's weirder, and more consequential, than you'd expect.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="01-the-big-picture.html"><div class="k">← Previous</div><h4>The Big Picture</h4></a>
+  <a href="03-tokens-and-tokenization.html"><div class="k">Next →</div><h4>Tokens &amp; Tokenization</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 02 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

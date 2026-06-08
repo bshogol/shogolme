@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Inference Engine — Shogol</title>
+<meta name="description" content="KV cache, batching, and the economics of serving a model to millions of people fast and cheap." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 07</span><span>·</span><span>The Inference Engine</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 07</span><span>·</span><span>The Inference Engine</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 07 / 15</b></span><span>7 MIN READ</span><span>INFERENCE</span></div>
+  <h1 class="post-title">The Inference Engine</h1>
+  <p class="post-dek">KV cache, batching, and the economics of serving — how engines turn an expensive GPU into a viable global service.</p>
+
+  <div class="prose">
+    <p>In post #6 we ran a model the naïve way: one request, one token at a time. That's fine for understanding. It's a disaster for <em>serving</em> — running a model for millions of people, fast, without lighting money on fire.</p>
+
+    <p>Closing that gap is the job of the <strong>inference engine</strong>: the specialized software that sits between your request and the raw model and squeezes every drop of performance out of expensive hardware. This is where a huge amount of real engineering happens, and where projects like vLLM, TensorRT-LLM, SGLang, and others compete. Let's see what they're actually doing.</p>
+
+    <h2>The two numbers that rule everything</h2>
+    <p>Inference is a balancing act between two metrics that pull against each other:</p>
+    <ul>
+      <li><strong>Latency</strong> — how fast <em>one</em> user gets their answer. Usually measured as <em>time to first token</em> (how long until the response starts) and <em>time per output token</em> (how fast it then types).</li>
+      <li><strong>Throughput</strong> — how many tokens <em>total</em> the system produces per second across <em>all</em> users. This is what determines cost per request.</li>
+    </ul>
+    <p>You can often improve one by sacrificing the other. The art of serving is getting both as high as possible at once. And the reason it's hard comes down to the nature of the hardware.</p>
+
+    <h2>The core problem: GPUs are starving</h2>
+    <p>LLM inference runs on GPUs (and similar accelerators). A GPU has thousands of arithmetic units that can do math astonishingly fast — but they constantly need to be fed with data (the model's weights) from memory. For LLM decode, the bottleneck is almost never the math; it's <strong>memory bandwidth</strong>: shuttling those billions of weights from memory to the compute units.</p>
+
+    <p>Here's the killer detail. To generate <em>one</em> token, you must stream the <em>entire model's weights</em> through the chip. To generate that token for <em>one</em> user versus <em>a hundred</em> users costs almost the same in memory traffic — because you're loading the weights once either way. So:</p>
+
+    <blockquote><p>Generating a token for 1 user wastes ~99% of the GPU. Generating a token for 100 users at once is nearly free per user.</p></blockquote>
+
+    <p>That single fact drives the most important optimization in serving.</p>
+
+    <h2>Batching: serve many users at once</h2>
+    <p><strong>Batching</strong> means processing many requests together so each expensive load of the weights does useful work for everyone in the batch.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 320" role="img" aria-label="Naive serving loads the weights once per token for one user; batched serving loads them once per step and produces a token for every user in the batch">
+        <text class="dgm-title" x="180" y="28" text-anchor="middle" font-size="14">Naïve — one user</text>
+        <text class="dgm-title" x="540" y="28" text-anchor="middle" font-size="14">Batched — many users</text>
+
+        <!-- naive: weight load per token -->
+        <g class="pop"><rect class="dgm-box-accent" x="40" y="52" width="120" height="30" rx="7"/><text class="dgm-accent" x="100" y="72" text-anchor="middle" font-size="12" font-weight="600">load weights</text></g>
+        <path class="dgm-flow draw" pathLength="1" d="M160 67 H210"/>
+        <g class="pop"><rect class="dgm-box" x="210" y="52" width="100" height="30" rx="7"/><text class="dgm-ink" x="260" y="72" text-anchor="middle" font-size="12">1 token</text></g>
+
+        <g class="pop d2"><rect class="dgm-box-accent" x="40" y="100" width="120" height="30" rx="7"/><text class="dgm-accent" x="100" y="120" text-anchor="middle" font-size="12" font-weight="600">load weights</text></g>
+        <path class="dgm-flow draw d2" pathLength="1" d="M160 115 H210"/>
+        <g class="pop d2"><rect class="dgm-box" x="210" y="100" width="100" height="30" rx="7"/><text class="dgm-ink" x="260" y="120" text-anchor="middle" font-size="12">1 token</text></g>
+
+        <g class="pop d3"><rect class="dgm-box-accent" x="40" y="148" width="120" height="30" rx="7"/><text class="dgm-accent" x="100" y="168" text-anchor="middle" font-size="12" font-weight="600">load weights</text></g>
+        <path class="dgm-flow draw d3" pathLength="1" d="M160 163 H210"/>
+        <g class="pop d3"><rect class="dgm-box" x="210" y="148" width="100" height="30" rx="7"/><text class="dgm-ink" x="260" y="168" text-anchor="middle" font-size="12">1 token</text></g>
+
+        <text class="dgm-muted" x="180" y="208" text-anchor="middle" font-size="11">weights loaded once PER TOKEN</text>
+
+        <!-- divider -->
+        <path class="dgm-line" d="M360 44 V270" stroke-dasharray="4 5"/>
+
+        <!-- batched: one load, N tokens -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="400" y="100" width="120" height="36" rx="8"/><text class="dgm-accent" x="460" y="123" text-anchor="middle" font-size="12" font-weight="600">load weights</text></g>
+        <path class="dgm-flow draw d3" pathLength="1" d="M520 105 H575"/>
+        <path class="dgm-flow draw d3" pathLength="1" d="M520 118 H575"/>
+        <path class="dgm-flow draw d3" pathLength="1" d="M520 131 H575"/>
+        <g class="pop d3"><rect class="dgm-box" x="575" y="80" width="115" height="26" rx="6"/><text class="dgm-ink" x="632" y="98" text-anchor="middle" font-size="11">1 token · user A</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="575" y="112" width="115" height="26" rx="6"/><text class="dgm-ink" x="632" y="130" text-anchor="middle" font-size="11">1 token · user B</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="575" y="144" width="115" height="26" rx="6"/><text class="dgm-ink" x="632" y="162" text-anchor="middle" font-size="11">1 token · user C</text></g>
+        <text class="dgm-muted" x="540" y="208" text-anchor="middle" font-size="11">weights loaded once PER STEP, shared</text>
+      </svg>
+      <figcaption>One weight load — one token, or N tokens for the whole batch</figcaption>
+    </figure>
+
+    <p>The problem: in the real world, requests arrive at different times and have different lengths. If you wait to assemble a fixed batch, early arrivals sit idle; if a batch has one very long request, everyone waits for it.</p>
+
+    <p>The fix is <strong>continuous batching</strong> (sometimes "in-flight batching"): the engine manages a constantly shifting batch, slotting new requests in the moment a spot opens and evicting finished ones immediately — no waiting for the whole batch to complete. This one technique can multiply throughput several-fold and is a defining feature of modern engines.</p>
+
+    <h2>The KV cache: don't redo work</h2>
+    <p>Now the second big idea, and it requires remembering how attention works (post #4). At each decode step, every token attends to all previous tokens. Computing attention requires each previous token's <strong>key</strong> and <strong>value</strong> vectors.</p>
+
+    <p>Naïvely, at step 100 you'd recompute the keys and values for tokens 1–99 from scratch. Again at step 101. And 102. That's enormous, wasteful, repeated work.</p>
+
+    <p>The <strong>KV cache</strong> is the fix: compute each token's key and value <em>once</em>, store them, and reuse them for every future step. It turns generation from "recompute everything every step" into "compute only the new token and look up the rest."</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 280" role="img" aria-label="The KV cache grows by one slot each decode step; only the new token's key and value are computed while the earlier ones are read from the cache">
+        <text class="dgm-title" x="360" y="26" text-anchor="middle" font-size="14">KV cache grows one slot per step</text>
+
+        <!-- step 1 -->
+        <text class="dgm-muted" x="120" y="62" text-anchor="middle" font-size="11">step 1</text>
+        <g class="pop"><rect class="dgm-box-accent" x="92" y="74" width="56" height="40" rx="6"/><text class="dgm-accent" x="120" y="99" text-anchor="middle" font-size="12" font-weight="600">K₁V₁</text></g>
+
+        <!-- step 2 -->
+        <text class="dgm-muted" x="270" y="62" text-anchor="middle" font-size="11">step 2</text>
+        <g class="pop d2"><rect class="dgm-box" x="214" y="74" width="56" height="40" rx="6"/><text class="dgm-muted" x="242" y="99" text-anchor="middle" font-size="12">K₁V₁</text></g>
+        <g class="pop d2"><rect class="dgm-box-accent" x="272" y="74" width="56" height="40" rx="6"/><text class="dgm-accent" x="300" y="99" text-anchor="middle" font-size="12" font-weight="600">K₂V₂</text></g>
+
+        <!-- step 3 -->
+        <text class="dgm-muted" x="480" y="62" text-anchor="middle" font-size="11">step 3</text>
+        <g class="pop d3"><rect class="dgm-box" x="368" y="74" width="56" height="40" rx="6"/><text class="dgm-muted" x="396" y="99" text-anchor="middle" font-size="12">K₁V₁</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="426" y="74" width="56" height="40" rx="6"/><text class="dgm-muted" x="454" y="99" text-anchor="middle" font-size="12">K₂V₂</text></g>
+        <g class="pop d3"><rect class="dgm-box-accent" x="484" y="74" width="56" height="40" rx="6"/><text class="dgm-accent" x="512" y="99" text-anchor="middle" font-size="12" font-weight="600">K₃V₃</text></g>
+
+        <!-- step N -->
+        <text class="dgm-muted" x="636" y="62" text-anchor="middle" font-size="11">step N …</text>
+        <g class="pop d4"><rect class="dgm-box" x="580" y="74" width="40" height="40" rx="6"/><text class="dgm-muted" x="600" y="99" text-anchor="middle" font-size="11">…</text></g>
+        <g class="pop d4"><rect class="dgm-box-accent" x="624" y="74" width="56" height="40" rx="6"/><text class="dgm-accent" x="652" y="99" text-anchor="middle" font-size="12" font-weight="600">KₙVₙ</text></g>
+
+        <!-- flow arrows showing growth -->
+        <path class="dgm-flow draw d2" pathLength="1" d="M150 94 H210"/>
+        <path class="dgm-flow draw d3" pathLength="1" d="M330 94 H364"/>
+        <path class="dgm-flow draw d4" pathLength="1" d="M544 94 H576"/>
+
+        <text class="dgm-accent" x="360" y="172" text-anchor="middle" font-size="12" font-weight="600">accent = newly computed this step · muted = read from cache</text>
+        <text class="dgm-muted" x="360" y="200" text-anchor="middle" font-size="12">Without cache: O(N) work/step  ·  With cache: O(1) work/step</text>
+        <text class="dgm-muted" x="360" y="228" text-anchor="middle" font-size="11">…and the cache lives in precious GPU memory, growing with every token</text>
+      </svg>
+      <figcaption>Compute each key/value once — then only ever add the newest token</figcaption>
+    </figure>
+
+    <p>The KV cache is what makes generation tractable. But it comes with a catch that turns out to dominate serving economics:</p>
+
+    <blockquote><p>The KV cache lives in precious GPU memory, and it grows with every token in every active conversation.</p></blockquote>
+
+    <p>A long conversation or a big batch can have a KV cache that's <em>larger than the model's own weights</em>. GPU memory becomes the scarcest resource, and how you manage it determines how many users you can serve at once.</p>
+
+    <h2>PagedAttention: memory management for the KV cache</h2>
+    <p>Early engines allocated one big contiguous block of memory per request, sized for the worst case. Most requests didn't use all of it, so memory sat reserved and wasted — sometimes the majority of it. Fewer usable slots meant smaller batches meant lower throughput.</p>
+
+    <p>The influential idea here (introduced by vLLM, and named <strong>PagedAttention</strong>) borrows straight from how operating systems manage RAM. Instead of one big block per request, the KV cache is split into small fixed-size <strong>pages</strong> allocated on demand. A request uses only the pages it actually needs, and freed pages are instantly reusable by others.</p>
+
+    <pre><code>   Old way:  [■■■░░░░░░░] reserved-but-unused space wasted per request
+   Paged:    [■][■][■]    allocate pages as needed; no waste; pack more requests</code></pre>
+
+    <p>The payoff: far less wasted memory, so much larger batches, so much higher throughput. A nice bonus is that identical prefixes — say, a shared system prompt across thousands of requests — can <em>share</em> the same cached pages instead of each storing its own copy, saving even more memory and skipping repeated prefill work.</p>
+
+    <h2>The other tricks engines use</h2>
+    <p>A modern engine layers on more:</p>
+    <ul>
+      <li><strong>Prefix caching</strong> — remember the KV cache for common prompt prefixes (system prompts, few-shot examples, a long document being asked about repeatedly) and skip recomputing them.</li>
+      <li><strong>Chunked prefill</strong> — break a huge prompt's prefill into chunks and interleave it with ongoing decode work, so one giant prompt doesn't stall everyone else.</li>
+      <li><strong>Tensor / pipeline parallelism</strong> — when a model is too big for one GPU, split it across several, coordinating them so they act as one. Essential for the largest models.</li>
+      <li><strong>Quantization-aware kernels</strong> — run the model in lower precision for speed (the whole subject of post #8).</li>
+      <li><strong>Speculative decoding</strong> — use a small fast model to guess several tokens ahead and a big model to verify them in one shot (also post #8).</li>
+    </ul>
+
+    <h2>Why you should care even if you never run one</h2>
+    <p>Even if you only ever <em>call</em> an LLM API, the inference engine shapes your experience and your bill:</p>
+    <ul>
+      <li><strong>Cost</strong> is downstream of throughput. The whole reason providers can charge what they do is that batching, KV caching, and paging let one GPU serve many users.</li>
+      <li><strong>Latency</strong> behavior — slow first token, then fast streaming — is the prefill/decode split (post #6) running through the engine.</li>
+      <li><strong>Why prompt caching saves you money</strong> — when a provider offers a discount for reusing a prompt prefix, that's prefix caching being passed on to you. Designing your prompts so the stable parts come first (post #9) can cut both latency and cost.</li>
+      <li><strong>Why batch/async APIs are cheaper</strong> — they give the engine freedom to pack work efficiently, so the savings flow back to you.</li>
+    </ul>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>The inference engine exists because naïve generation wastes almost all of an expensive GPU. By batching many users together (continuous batching), never recomputing past tokens (the KV cache), and managing cache memory like an OS manages RAM (paged attention and prefix sharing), engines turn an economically hopeless workload into a viable global service. Almost every number you see in an LLM pricing page is downstream of these ideas.</p>
+    </div>
+
+    <p>We've made the model run efficiently. The next frontier is making the model itself smaller and cheaper without losing its smarts.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="06-inference-generating-text.html"><div class="k">← Previous</div><h4>Inference: How a Model Generates Text</h4></a>
+  <a href="08-faster-and-cheaper.html"><div class="k">Next →</div><h4>Making Models Faster &amp; Cheaper</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 07 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

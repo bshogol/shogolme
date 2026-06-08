@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Big Picture — Shogol</title>
+<meta name="description" content="What actually changed, and a map of the whole AI stack — from tokens to agents." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 01</span><span>·</span><span>The Big Picture</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 01</span><span>·</span><span>The Big Picture</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 01 / 15</b></span><span>5 MIN READ</span><span>FOUNDATIONS</span></div>
+  <h1 class="post-title">The Big Picture</h1>
+  <p class="post-dek">What actually changed — and a map of the whole stack, from the raw text a model reads to the agents that act on your behalf.</p>
+
+  <div class="prose">
+    <p>Something strange happened over the last few years. A piece of software started writing usable code, drafting legal arguments, explaining your blood test, and holding a conversation that — on a good day — is hard to distinguish from a thoughtful colleague. Then it started <em>doing things</em>: editing your files, running commands, booking the meeting, filing the pull request.</p>
+
+    <p>If you work in or around technology, you've probably felt two things at once: this is obviously a big deal, and you're not totally sure what's underneath it. This series is about closing that gap. By the end you'll have a clear mental model of the whole stack — from the raw text a model reads, to the engines that serve it at scale, to the agents that act on your behalf.</p>
+
+    <p>Let's start with the map.</p>
+
+    <h2>The one idea you actually need</h2>
+    <p>Almost everything in this series rests on a single, almost insultingly simple idea:</p>
+    <blockquote><p>A large language model is a function that, given some text, predicts what text comes next.</p></blockquote>
+    <p>That's it. It's a very, very good autocomplete. You give it "The capital of France is" and it predicts "Paris." You give it a half-written function and it predicts the rest. You give it a question and it predicts the answer, because in all the text it learned from, questions tend to be followed by answers.</p>
+    <p>The surprise of the last few years — the thing nobody fully predicted — is that if you make this autocomplete big enough, and train it on enough of humanity's writing, "predict the next word" turns into something that looks a lot like reasoning, knowledge, and skill. We'll spend post #2 on <em>why</em> that works. For now, just hold onto the core: <strong>text in, prediction of next text out.</strong></p>
+
+    <h2>The stack, layer by layer</h2>
+    <p>Here's the whole landscape we're going to explore, from the inside out — each layer wraps the one before it:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 430" role="img" aria-label="The AI stack, from raw text through tokenizer, model, inference engine, harness, and agents">
+        <!-- connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M150 60 H250" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 95 V135" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 200 V240" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M360 305 V345" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M360 410 V410" />
+        <!-- raw text -->
+        <g class="pop"><rect class="dgm-box" x="30" y="38" width="120" height="44" rx="9"/><text class="dgm-ink" x="90" y="65" text-anchor="middle" font-size="15" font-weight="600">raw text</text></g>
+        <!-- tokenizer -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="250" y="38" width="120" height="44" rx="9"/><text class="dgm-accent" x="310" y="65" text-anchor="middle" font-size="15" font-weight="600">tokenizer</text></g>
+        <!-- model -->
+        <g class="pop d2"><rect class="dgm-box" x="245" y="95" width="230" height="58" rx="11"/><text class="dgm-ink" x="360" y="120" text-anchor="middle" font-size="16" font-weight="700">the model</text><text class="dgm-muted" x="360" y="140" text-anchor="middle" font-size="12">(transformer)</text></g>
+        <!-- inference engine -->
+        <g class="pop d3"><rect class="dgm-box" x="215" y="160" width="290" height="56" rx="11"/><text class="dgm-ink" x="360" y="185" text-anchor="middle" font-size="15" font-weight="600">inference engine</text><text class="dgm-muted" x="360" y="203" text-anchor="middle" font-size="11">serves it fast &amp; cheap</text></g>
+        <!-- harness -->
+        <g class="pop d4"><rect class="dgm-box" x="185" y="248" width="350" height="56" rx="11"/><text class="dgm-ink" x="360" y="273" text-anchor="middle" font-size="15" font-weight="600">the harness</text><text class="dgm-muted" x="360" y="291" text-anchor="middle" font-size="11">loop · tools · rules</text></g>
+        <!-- agents -->
+        <g class="pop d5"><rect class="dgm-box-accent" x="245" y="350" width="230" height="56" rx="11"/><text class="dgm-accent" x="360" y="383" text-anchor="middle" font-size="17" font-weight="700">agents</text></g>
+        <!-- you / app -->
+        <g class="pop d4"><rect class="dgm-box" x="560" y="248" width="130" height="56" rx="11"/><text class="dgm-ink" x="625" y="273" text-anchor="middle" font-size="14" font-weight="600">you / app</text><text class="dgm-muted" x="625" y="291" text-anchor="middle" font-size="11">the goal</text></g>
+        <path class="dgm-line draw d4" pathLength="1" d="M560 276 H535" stroke-dasharray="4 4"/>
+      </svg>
+      <figcaption>The stack — each layer wraps the one inside it</figcaption>
+    </figure>
+
+    <p>Reading it from the inside out:</p>
+    <ul>
+      <li><strong>Tokens</strong> are the chunks of text the model reads and writes. Not quite words, not quite letters. We cover them in post #3.</li>
+      <li><strong>The model</strong> itself is a transformer — a particular neural network design that turned out to scale beautifully. Posts #4 and #5 open it up and explain how it's trained.</li>
+      <li><strong>Inference</strong> is the act of running the model to generate text. It sounds simple but it's full of interesting choices (post #6).</li>
+      <li><strong>The inference engine</strong> is the heavy machinery that makes inference fast and cheap enough to serve millions of people (posts #7 and #8).</li>
+      <li><strong>The harness</strong> is the code <em>around</em> the model: the loop that calls it, the system instructions, the parsing of its output, the guardrails. A raw model is a brain in a jar; the harness gives it a body (post #10).</li>
+      <li><strong>Tools</strong> let the model reach outside its own head — search the web, run code, query a database (post #11).</li>
+      <li><strong>Agents</strong> are what you get when you put all of this together and let the model pursue a goal over many steps (posts #12–13).</li>
+    </ul>
+    <p>Most public conversation about "AI" smears all of these layers together. One goal of this series is to give you the vocabulary to say precisely which layer you're talking about — because the answer to "why did it do that?" is usually very different depending on the layer.</p>
+
+    <h2>Why the distinction matters</h2>
+    <p>A quick example. Say an AI coding assistant deletes the wrong file. Where's the bug? It depends entirely on which layer failed:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 250" role="img" aria-label="One symptom, four different layers, four different fixes">
+        <text class="dgm-title" x="360" y="28" text-anchor="middle" font-size="15">"It deleted the wrong file." — where's the bug?</text>
+        <g class="pop"><rect class="dgm-box" x="20" y="55" width="160" height="150" rx="11"/><text class="dgm-accent" x="100" y="86" text-anchor="middle" font-size="13" font-weight="700">MISUNDERSTOOD</text><text class="dgm-muted" x="100" y="120" text-anchor="middle" font-size="12">model /</text><text class="dgm-muted" x="100" y="138" text-anchor="middle" font-size="12">prompting</text><text class="dgm-ink" x="100" y="178" text-anchor="middle" font-size="12">layers 2 &amp; 9</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="195" y="55" width="160" height="150" rx="11"/><text class="dgm-accent" x="275" y="86" text-anchor="middle" font-size="13" font-weight="700">COULDN'T RUN</text><text class="dgm-muted" x="275" y="120" text-anchor="middle" font-size="12">tooling</text><text class="dgm-ink" x="275" y="178" text-anchor="middle" font-size="12">layer 11</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="370" y="55" width="160" height="150" rx="11"/><text class="dgm-accent" x="450" y="86" text-anchor="middle" font-size="13" font-weight="700">NO CONFIRM</text><text class="dgm-muted" x="450" y="120" text-anchor="middle" font-size="12">harness</text><text class="dgm-muted" x="450" y="138" text-anchor="middle" font-size="12">design</text><text class="dgm-ink" x="450" y="178" text-anchor="middle" font-size="12">layer 10</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="545" y="55" width="160" height="150" rx="11"/><text class="dgm-accent" x="625" y="86" text-anchor="middle" font-size="13" font-weight="700">TIMED OUT</text><text class="dgm-muted" x="625" y="120" text-anchor="middle" font-size="12">inference</text><text class="dgm-muted" x="625" y="138" text-anchor="middle" font-size="12">engine</text><text class="dgm-ink" x="625" y="178" text-anchor="middle" font-size="12">layer 7</text></g>
+      </svg>
+      <figcaption>Four very different problems · four different teams · four different fixes</figcaption>
+    </figure>
+
+    <p>People who can't separate the layers tend to either over-trust the technology ("it's magic") or over-dismiss it ("it's just autocomplete"). Both are wrong, and both come from looking at the whole funnel as one opaque blob.</p>
+
+    <h2>A few myths to drop now</h2>
+    <p>Before we go deeper, let's clear out some baggage:</p>
+    <ul>
+      <li><strong>"It's just looking things up."</strong> No. The model has no database of facts it searches. Everything it "knows" is baked into billions of numerical weights during training. That's why it can be confidently wrong — it's reconstructing, not retrieving. (Retrieval is something we <em>add</em> later — that's post #14.)</li>
+      <li><strong>"It thinks like a person."</strong> It doesn't. The analogies in this series are scaffolding, not claims about consciousness. A model can be brilliant at one task and fail at something a child finds trivial.</li>
+      <li><strong>"Bigger is always better."</strong> Size helped enormously, but the frontier now is as much about <em>how</em> you train, <em>how</em> you serve, and <em>how</em> you wrap the model as it is about raw parameter count.</li>
+    </ul>
+
+    <h2>What you'll be able to do by the end</h2>
+    <p>This isn't a how-to-build-a-model course — there are excellent ones of those, and most of us will never train a frontier model. This is a <em>how-to-understand-it</em> series, aimed at the much larger group of people who use, build on top of, buy, or make decisions about this technology.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>By post #15 you should be able to read a model release, an inference-engine benchmark, or an agent framework's docs and actually understand what's being claimed, what's novel, and what's marketing.</p>
+    </div>
+
+    <p>Next up: the heart of the whole thing — what a large language model really is, and why "predict the next token" turned out to be one of the most consequential ideas in computing.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <span class="empty"></span>
+  <a href="02-what-is-an-llm.html"><div class="k">Next →</div><h4>What Is a Large Language Model?</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 01 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

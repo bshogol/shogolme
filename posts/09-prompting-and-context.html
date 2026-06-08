@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prompting &amp; Context — Shogol</title>
+<meta name="description" content="The prompt is a short program you write in plain language, and the context window is the model's working memory." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 09</span><span>·</span><span>Prompting &amp; Context</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 09</span><span>·</span><span>Prompting &amp; Context</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 09 / 15</b></span><span>6 MIN READ</span><span>PROMPTING</span></div>
+  <h1 class="post-title">Prompting &amp; Context</h1>
+  <p class="post-dek">The prompt is a short program you write in plain English — and the context window is the only working memory the model has.</p>
+
+  <div class="prose">
+    <p>We've spent eight posts inside the machine. Now we cross over to the side most people actually touch: how you <em>talk</em> to a model. The prompt is the only lever a user has over a frozen set of weights — and it's a far more powerful lever than it first appears.</p>
+
+    <p>The big idea of this post:</p>
+
+    <blockquote><p>The prompt isn't just a question. It's a short program you write in plain language, and the model's context window is its working memory.</p></blockquote>
+
+    <h2>In-context learning: teaching without training</h2>
+    <p>Here's something genuinely strange about LLMs. You can teach them a brand-new task <em>at the moment you ask</em>, just by showing examples in the prompt — no retraining, no weight changes. This is <strong>in-context learning</strong>, and it was one of the most surprising discoveries about large models.</p>
+
+    <pre><code>   Translate to French:
+       sea otter   →  loutre de mer
+       cheese      →  fromage
+       hello       →  ?
+
+   The model answers "bonjour" — it inferred the task purely from the examples.</code></pre>
+
+    <p>Nothing about the model changed. It recognized the <em>pattern</em> of the prompt and continued it (post #2's next-token prediction, doing exactly its job). This is why showing a couple of examples — <strong>few-shot prompting</strong> — is often the single highest-leverage thing you can do to improve output quality and lock in a format.</p>
+
+    <p>Why does this work at all? During pretraining the model saw countless instances of "pattern established, then continued." Following an in-prompt pattern is just more of the same skill, now pointed at your task.</p>
+
+    <h2>The anatomy of a good prompt</h2>
+    <p>Most production prompts have recognizable parts, even if they blur together:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 430" role="img" aria-label="The anatomy of a prompt as a stack of labelled sections: role, instructions, context, examples, the input, and output format">
+        <g class="pop"><rect class="dgm-box-accent" x="40" y="30" width="430" height="50" rx="9"/><text class="dgm-accent" x="60" y="60" font-size="14" font-weight="700">ROLE / SYSTEM</text></g>
+        <text class="dgm-muted" x="490" y="60" font-size="12">who the model is</text>
+        <g class="pop d2"><rect class="dgm-box" x="40" y="86" width="430" height="50" rx="9"/><text class="dgm-ink" x="60" y="116" font-size="14" font-weight="600">INSTRUCTIONS</text></g>
+        <text class="dgm-muted" x="490" y="116" font-size="12">the rules</text>
+        <g class="pop d2"><rect class="dgm-box" x="40" y="142" width="430" height="50" rx="9"/><text class="dgm-ink" x="60" y="172" font-size="14" font-weight="600">CONTEXT</text></g>
+        <text class="dgm-muted" x="490" y="172" font-size="12">what it needs to know</text>
+        <g class="pop d3"><rect class="dgm-box" x="40" y="198" width="430" height="50" rx="9"/><text class="dgm-ink" x="60" y="228" font-size="14" font-weight="600">EXAMPLES (few-shot)</text></g>
+        <text class="dgm-muted" x="490" y="228" font-size="12">show, don't just tell</text>
+        <g class="pop d3"><rect class="dgm-box" x="40" y="254" width="430" height="50" rx="9"/><text class="dgm-ink" x="60" y="284" font-size="14" font-weight="600">THE ACTUAL INPUT</text></g>
+        <text class="dgm-muted" x="490" y="284" font-size="12">the task</text>
+        <g class="pop d4"><rect class="dgm-box-accent" x="40" y="310" width="430" height="50" rx="9"/><text class="dgm-accent" x="60" y="340" font-size="14" font-weight="700">OUTPUT FORMAT</text></g>
+        <text class="dgm-muted" x="490" y="340" font-size="12">shape of the answer</text>
+        <path class="dgm-flow draw d4" pathLength="1" d="M255 366 V400" />
+        <path class="dgm-flow draw d4" pathLength="1" d="M243 388 L255 402 L267 388" />
+        <text class="dgm-muted" x="285" y="406" font-size="12">the model continues from here</text>
+      </svg>
+      <figcaption>A prompt is a stack of sections — each shapes a different part of the answer</figcaption>
+    </figure>
+
+    <p>You don't always need every section, but the failures usually come from a missing one: vague rules, no examples, or an unspecified output format that leaves the model guessing.</p>
+
+    <p>A handful of techniques carry most of the weight:</p>
+    <ul>
+      <li><strong>Be specific about the output.</strong> "Return JSON with keys <code>title</code> and <code>summary</code>" beats "summarize this" by a mile. Models are eager to please but bad at reading your mind.</li>
+      <li><strong>Show, don't just tell.</strong> One good example often does more than a paragraph of instructions, because it pins down format, tone, and edge cases at once.</li>
+      <li><strong>Give the model a role.</strong> "You are an expert epidemiologist" genuinely shifts the style and care of the response, because it conditions the model toward the relevant slice of what it learned.</li>
+      <li><strong>State constraints positively.</strong> "Respond in under 100 words" works better than a pile of "don't" rules. Models follow targets better than prohibitions.</li>
+    </ul>
+
+    <h2>"Think step by step": reasoning in the open</h2>
+    <p>One technique deserves special mention because it changed how people use these models. If you ask a model to reason through a problem <em>out loud</em> before answering — <strong>chain-of-thought</strong> prompting — accuracy on hard problems jumps.</p>
+
+    <pre><code>   Weak:    "What's 17 × 24?"                  → model blurts a guess, often wrong
+
+   Strong:  "What's 17 × 24? Think step by step."
+            → "17 × 24 = 17 × 20 + 17 × 4
+                       = 340 + 68
+                       = 408"                   → far more reliable</code></pre>
+
+    <p>Why does this help? Remember from post #6 that the model commits to one token at a time and can't go back. Forcing it to write out intermediate steps gives it more "room to compute" — each step it writes becomes context that supports the next. Reasoning silently, it has to leap to the answer in one shot; reasoning out loud, it can build up to it.</p>
+
+    <p>Modern "reasoning models" bake this in: they're trained (post #5) to generate a long internal chain of thought before their final answer, often hidden from you. But the principle is the same one you can invoke yourself in any model.</p>
+
+    <h2>Context engineering: managing the working memory</h2>
+    <p>Here's where this post connects back to the machine. The context window (posts #3, #6) is the model's <em>entire</em> working memory. It has no other state. So a deeper discipline has grown up around prompting: <strong>context engineering</strong> — deciding what goes into that limited window, and in what order.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 230" role="img" aria-label="The context window as a single fixed budget split into system, relevant docs, conversation, your ask, and room to answer">
+        <text class="dgm-title" x="360" y="34" text-anchor="middle" font-size="15">the context window — one finite budget</text>
+        <g class="pop"><rect class="dgm-box-accent" x="40" y="60" width="110" height="80" rx="10"/><text class="dgm-accent" x="95" y="105" text-anchor="middle" font-size="13" font-weight="700">system</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="155" y="60" width="170" height="80" rx="10"/><text class="dgm-ink" x="240" y="105" text-anchor="middle" font-size="13" font-weight="600">relevant docs</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="330" y="60" width="155" height="80" rx="10"/><text class="dgm-ink" x="407" y="105" text-anchor="middle" font-size="13" font-weight="600">conversation</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="490" y="60" width="100" height="80" rx="10"/><text class="dgm-ink" x="540" y="105" text-anchor="middle" font-size="13" font-weight="600">your ask</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="595" y="60" width="85" height="80" rx="10" stroke-dasharray="5 4"/><text class="dgm-muted" x="637" y="98" text-anchor="middle" font-size="11">room to</text><text class="dgm-muted" x="637" y="114" text-anchor="middle" font-size="11">answer</text></g>
+        <path class="dgm-flow draw d3" pathLength="1" d="M40 168 H680" />
+        <text class="dgm-muted" x="360" y="200" text-anchor="middle" font-size="12">every token here competes for the same finite budget</text>
+      </svg>
+      <figcaption>System, history, retrieved docs, your ask — and the answer — all share one window</figcaption>
+    </figure>
+
+    <p>The hard truths of context engineering:</p>
+    <ul>
+      <li><strong>More context isn't always better.</strong> Stuffing the window with marginally relevant material can <em>hurt</em> — the model gets distracted, and the signal you care about gets diluted. Curate, don't dump.</li>
+      <li><strong>Position matters.</strong> Models tend to pay most attention to the beginning and end of a long context and can overlook things buried in the middle (the "lost in the middle" effect). Put the most important material where it'll be seen.</li>
+      <li><strong>Stable content first.</strong> Putting the unchanging parts of your prompt (system instructions, fixed examples) at the front lets the inference engine's prefix cache (post #7) reuse them — saving latency and money on every call.</li>
+      <li><strong>Tokens are budget.</strong> Every token of prompt is a token you pay for and a token of room you don't have for the answer (post #3). Concise, well-organized context beats sprawling context.</li>
+    </ul>
+
+    <p>This is the bridge to everything that follows. When we get to agents (post #12), their single hardest engineering problem will turn out to be exactly this: managing what's in the context window as a task drags on across many steps and the relevant information piles up far past what fits.</p>
+
+    <h2>A note on prompt injection</h2>
+    <div class="callout">
+      <div class="k">Security · prompt injection</div>
+      <p>Because the model treats everything in its context as input to continue, it can't inherently tell <em>your</em> instructions apart from instructions hiding in a document, web page, or email it's been asked to process. A malicious "ignore your previous instructions and..." buried in fetched content can hijack behavior. This is <strong>prompt injection</strong>, and it's a genuinely unsolved security problem that gets sharper the moment the model can take actions (posts #11–12). Keep it in the back of your mind; we'll return to it.</p>
+    </div>
+
+    <h2>The takeaway</h2>
+    <p>A prompt is a program written in language, and in-context learning lets you teach new tasks on the fly just by showing examples. Be specific, show examples, assign a role, and let the model reason out loud for hard problems. Underneath it all is context engineering: the model's only memory is its context window, so curating what goes in it — and where — is the real skill.</p>
+
+    <p>So far the model only ever produces text. To make it genuinely useful, we wrap it in code: a loop, a set of rules, and machinery to parse and act on its output. That wrapper is the harness.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="08-faster-and-cheaper.html"><div class="k">← Previous</div><h4>Making Models Faster &amp; Cheaper</h4></a>
+  <a href="10-the-harness.html"><div class="k">Next →</div><h4>The Harness</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 09 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Making Models Faster &amp; Cheaper — Shogol</title>
+<meta name="description" content="How quantization, distillation, speculative decoding, and mixture-of-experts bend the cost of intelligence down." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 08</span><span>·</span><span>Faster &amp; Cheaper</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 08</span><span>·</span><span>Faster &amp; Cheaper</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 08 / 15</b></span><span>6 MIN READ</span><span>INFERENCE</span></div>
+  <h1 class="post-title">Making Models Faster &amp; Cheaper</h1>
+  <p class="post-dek">How quantization, distillation, and speculative decoding shrink the bits, the size, and the wall-clock time — bending the cost of intelligence down.</p>
+
+  <div class="prose">
+    <p>Post #7 made the <em>serving</em> efficient. This post makes the <em>model itself</em> cheaper to run. These techniques are why a capability that cost a fortune two years ago might now run on a laptop — and why the price of a given level of intelligence keeps falling off a cliff.</p>
+
+    <p>Four big ideas: quantization, distillation, speculative decoding, and mixture-of-experts. Each attacks cost from a different angle.</p>
+
+    <h2>Quantization: use fewer bits per number</h2>
+    <p>Recall that a model is billions of numbers (post #2). By default each is stored in fairly high precision — say 16 bits each. <strong>Quantization</strong> asks: do we really need that many bits?</p>
+
+    <p>The analogy: think of an image. A photo at full color depth looks great but is huge. Drop it to fewer colors and the file shrinks dramatically while looking nearly identical. Quantization does the same to a model's weights — store each number in 8 bits, or 4, or even fewer.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 250" role="img" aria-label="Quantization: a weight stored in 16 bits, then 8 bits, then 4 bits, shrinking in size each time">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">one weight, fewer bits</text>
+        <!-- flow connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M235 120 H285" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M470 120 H520" />
+        <!-- 16-bit -->
+        <g class="pop"><rect class="dgm-box" x="35" y="78" width="200" height="84" rx="11"/>
+          <text class="dgm-accent" x="135" y="104" text-anchor="middle" font-size="13" font-weight="700">16-BIT</text>
+          <text class="dgm-ink" x="135" y="128" text-anchor="middle" font-size="14" font-family="JetBrains Mono">0.7341829…</text>
+          <text class="dgm-muted" x="135" y="148" text-anchor="middle" font-size="11">2 bytes · full size</text></g>
+        <!-- 8-bit -->
+        <g class="pop d2"><rect class="dgm-box" x="285" y="88" width="185" height="64" rx="11"/>
+          <text class="dgm-accent" x="377" y="112" text-anchor="middle" font-size="13" font-weight="700">8-BIT</text>
+          <text class="dgm-ink" x="377" y="132" text-anchor="middle" font-size="14" font-family="JetBrains Mono">0.73 · ½ size</text></g>
+        <!-- 4-bit -->
+        <g class="pop d3"><rect class="dgm-box-accent" x="520" y="96" width="165" height="48" rx="11"/>
+          <text class="dgm-accent" x="602" y="116" text-anchor="middle" font-size="13" font-weight="700">4-BIT</text>
+          <text class="dgm-accent" x="602" y="134" text-anchor="middle" font-size="13" font-family="JetBrains Mono">0.7 · ¼ size</text></g>
+        <text class="dgm-muted" x="360" y="210" text-anchor="middle" font-size="12">coarser numbers · less memory traffic · nearly the same answers</text>
+      </svg>
+      <figcaption>Quantization — drop precision, shrink the model</figcaption>
+    </figure>
+
+    <p>Why it's such a big deal, given post #7's lesson that memory bandwidth is the bottleneck:</p>
+    <ul>
+      <li><strong>Smaller model = less memory traffic = faster.</strong> If decode speed is limited by how fast you can stream weights from memory, halving the weights nearly doubles the speed.</li>
+      <li><strong>Smaller model = fits on cheaper hardware.</strong> A model that needed a data-center GPU might now fit on a consumer card — or your phone.</li>
+      <li><strong>Smaller model = more room for the KV cache and bigger batches</strong> (post #7), which compounds the throughput win.</li>
+    </ul>
+
+    <p>The catch is accuracy. Round the numbers too aggressively and the model gets dumber or starts making errors. The art is quantizing the parts that tolerate it while protecting the sensitive ones. Modern 8-bit and even 4-bit methods are good enough that the quality loss is often barely noticeable — which is why quantized models are now everywhere, especially for running locally.</p>
+
+    <h2>Distillation: train a small model to imitate a big one</h2>
+    <p>Quantization shrinks a model's <em>precision</em>. <strong>Distillation</strong> shrinks its <em>size</em> by training a small "student" model to mimic a large "teacher."</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 240" role="img" aria-label="Distillation: a big teacher model produces full probability distributions that train a small student model">
+        <!-- teacher -->
+        <g class="pop"><rect class="dgm-box" x="40" y="55" width="220" height="130" rx="13"/>
+          <text class="dgm-ink" x="150" y="100" text-anchor="middle" font-size="17" font-weight="700">big teacher</text>
+          <text class="dgm-muted" x="150" y="124" text-anchor="middle" font-size="12">large · expensive</text>
+          <text class="dgm-muted" x="150" y="146" text-anchor="middle" font-size="12">full output</text>
+          <text class="dgm-muted" x="150" y="163" text-anchor="middle" font-size="12">distributions</text></g>
+        <!-- arrow + label -->
+        <path class="dgm-flow draw" pathLength="1" d="M260 120 H460" />
+        <text class="dgm-accent" x="360" y="108" text-anchor="middle" font-size="12" font-weight="700">imitate</text>
+        <text class="dgm-muted" x="360" y="145" text-anchor="middle" font-size="11">70% sunny · 25% cloudy …</text>
+        <!-- student -->
+        <g class="pop d3"><rect class="dgm-box-accent" x="460" y="78" width="220" height="84" rx="13"/>
+          <text class="dgm-accent" x="570" y="112" text-anchor="middle" font-size="16" font-weight="700">small student</text>
+          <text class="dgm-accent" x="570" y="136" text-anchor="middle" font-size="12">smaller · faster · capable</text></g>
+      </svg>
+      <figcaption>Distillation — a small student learns the teacher's nuance</figcaption>
+    </figure>
+
+    <p>The insight is that the teacher's <em>full output distribution</em> is far richer than a plain right/wrong label. When the teacher says "the answer is 70% 'sunny', 25% 'cloudy'," the student learns the teacher's nuance and uncertainty, not just the final pick. A small model trained this way can capture a remarkable fraction of a much larger model's ability on the tasks it was distilled for.</p>
+
+    <p>This is a major reason the small, fast, cheap models you can run today are so good: many of them learned from much larger, more expensive siblings. The trade-off is breadth — a distilled student tends to be excellent in the domains it was trained on and weaker outside them.</p>
+
+    <h2>Speculative decoding: guess ahead, verify in bulk</h2>
+    <p>This one is clever, and it directly attacks the sequential bottleneck from post #6 — that you can only make one token at a time.</p>
+
+    <p>The trick uses two models: a small fast <strong>draft</strong> model and the big accurate <strong>target</strong> model.</p>
+
+    <pre><code>   1. The small model quickly drafts several tokens ahead (a guess):
+         "The cat sat on the"  →  draft: " mat and looked"
+
+   2. The big model checks ALL of those guesses in a SINGLE pass
+      (verifying is parallel; generating was not):
+         " mat"    ✓  accept
+         " and"    ✓  accept
+         " looked" ✗  reject → big model supplies the correct token instead
+
+   3. Keep the accepted tokens, continue from the correction.</code></pre>
+
+    <p>Why it's a free lunch (almost): verifying several tokens at once costs the big model roughly the same as generating <em>one</em> token, because — per post #7 — the expensive part is loading the weights, not the math. So every accepted guess is a token you got nearly for free. When the small model guesses well (and on easy, predictable text it often does), you get a big speedup with <strong>zero quality loss</strong> — the output is exactly what the big model would have produced alone, because the big model has final say on every token.</p>
+
+    <h2>Mixture-of-Experts: don't use the whole brain for every token</h2>
+    <p>The last idea changes the model's architecture. A normal ("dense") model uses <em>all</em> of its parameters to process <em>every</em> token. A <strong>Mixture-of-Experts (MoE)</strong> model instead contains many specialized sub-networks ("experts") and, for each token, a small router activates only a few of them.</p>
+
+    <pre><code>   Dense model:   every token  ──►  ALL parameters fire        (expensive)
+
+   MoE model:     every token  ──►  router picks 2 of 64 experts
+                                    ──► only those fire          (cheap per token)</code></pre>
+
+    <p>The win: a model can have a <em>huge</em> total number of parameters (lots of stored knowledge and capacity) while only <em>using</em> a small fraction for any given token (cheap to run). You get much of the capability of a giant model at a fraction of the per-token compute. The cost is complexity and memory — all those experts still have to be <em>stored</em>, even if only a few fire at a time — plus the engineering of keeping the routing balanced. Many frontier models today are MoE under the hood.</p>
+
+    <h2>How they stack up</h2>
+    <pre><code>   technique            shrinks…           main win              main cost
+   ──────────────────────────────────────────────────────────────────────────
+   quantization         bits per weight    speed + fits hardware  slight accuracy
+   distillation         number of params   small capable models   narrower breadth
+   speculative decode   wall-clock time    faster, same output    needs a draft model
+   mixture-of-experts   compute per token  big capacity, cheap    storage + complexity</code></pre>
+
+    <p>These aren't either/or — a deployed model often uses several at once: an MoE model, quantized to 8 bits, served with speculative decoding, possibly distilled from a larger teacher. Layered together, they're the engine behind the relentless drop in the cost of intelligence.</p>
+
+    <h2>Why this matters for everyone else</h2>
+    <ul>
+      <li><strong>Prices keep falling.</strong> The cost per token for a given capability level has been dropping dramatically year over year, and these techniques are a big reason. Plan for "good enough" to get cheaper fast.</li>
+      <li><strong>Small models are punching up.</strong> Don't assume you need the biggest model. A distilled, quantized small model is often plenty for classification, extraction, routing, and many everyday tasks — at a tiny fraction of the cost and latency.</li>
+      <li><strong>Local and on-device AI is real.</strong> Quantization especially has made it practical to run genuinely capable models on laptops and phones, with the privacy and offline benefits that brings.</li>
+    </ul>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>We make models cheaper by using fewer bits (quantization), training smaller imitators (distillation), guessing ahead and verifying in bulk (speculative decoding), and only firing part of the network per token (mixture-of-experts). Together they bend the cost curve down and put real capability on hardware that couldn't have dreamed of it recently.</p>
+    </div>
+
+    <p>That's the end of the "how the machine works" half of the series. From here we go up the stack — to how we actually <em>talk</em> to these models and wrap them into useful products. It starts with the deceptively deep art of the prompt.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="07-the-inference-engine.html"><div class="k">← Previous</div><h4>The Inference Engine</h4></a>
+  <a href="09-prompting-and-context.html"><div class="k">Next →</div><h4>Prompting &amp; Context</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 08 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

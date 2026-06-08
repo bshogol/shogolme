@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multi-Agent Systems — Shogol</title>
+<meta name="description" content="When to coordinate several specialized agents — and when one good agent is the right call." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 13</span><span>·</span><span>Multi-Agent Systems</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 13</span><span>·</span><span>Multi-Agent Systems</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 13 / 15</b></span><span>5 MIN READ</span><span>AGENTS</span></div>
+  <h1 class="post-title">Multi-Agent Systems</h1>
+  <p class="post-dek">Several specialized agents, coordinated to divide the work — and the honest answer for when that's worth it and when it isn't.</p>
+
+  <div class="prose">
+    <p>If one agent (post #12) is a worker, a <strong>multi-agent system</strong> is a team. Instead of a single model looping on a whole task, you have several agents — each with its own role, context, and tools — coordinating to get something done.</p>
+
+    <p>The idea is intuitive: hard problems benefit from division of labor and multiple perspectives. But coordinating agents introduces real costs and failure modes, so the honest version of this post is as much "when <em>not</em> to" as "when to." Let's do both.</p>
+
+    <h2>Why use more than one agent?</h2>
+    <p>A few genuine reasons, each tied back to things we've already established:</p>
+
+    <p><strong>1. Context isolation.</strong> Recall that the context window is the binding constraint for any single agent (post #12). One agent trying to hold an entire sprawling task in one window gets overwhelmed and loses coherence. Splitting the work means each agent keeps a clean, focused context with only what <em>it</em> needs.</p>
+
+    <pre><code>   one agent:        [everything about the whole task crammed in one window]
+                     → cluttered, distracted, runs out of room
+
+   many agents:      [researcher: just sources]  [coder: just the code]
+                     [reviewer: just the diff]
+                     → each focused, each with room to think</code></pre>
+
+    <p><strong>2. Specialization.</strong> Different sub-tasks want different setups — different system prompts, tools, even different models (a cheap fast model for simple steps, a strong one for hard reasoning, per post #8). A specialized agent with a tight, purpose-built prompt often beats a generalist trying to do everything.</p>
+
+    <p><strong>3. Parallelism.</strong> Independent sub-tasks can run at the same time. If you need to research ten sources, ten agents reading one source each finish far faster than one agent reading all ten in sequence.</p>
+
+    <p><strong>4. Multiple perspectives.</strong> For judgment-heavy work, independent agents can check each other — one proposes, another critiques, a third verifies. This adversarial or ensemble structure catches mistakes a single pass would ship (it's the reflection idea from post #12, scaled across agents).</p>
+
+    <h2>Common patterns</h2>
+    <p>A handful of arrangements cover most real systems.</p>
+
+    <p><strong>Orchestrator–worker (manager–subagent).</strong> A lead agent breaks the goal into subtasks, hands each to a worker agent, and synthesizes their results. The most common and most flexible pattern.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 360" role="img" aria-label="An orchestrator agent plans and delegates subtasks to three worker agents, each with its own context and tools, then synthesizes their results">
+        <!-- fan-out connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M360 96 V128" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 128 H150 V172" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 128 V172" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 128 H570 V172" />
+        <!-- results flow back up -->
+        <path class="dgm-line draw d3" pathLength="1" d="M150 248 V296 H570 V248" stroke-dasharray="5 5"/>
+        <path class="dgm-line draw d4" pathLength="1" d="M360 296 V96" stroke-dasharray="5 5"/>
+        <!-- orchestrator -->
+        <g class="pop"><rect class="dgm-box-accent" x="240" y="40" width="240" height="56" rx="11"/><text class="dgm-accent" x="360" y="66" text-anchor="middle" font-size="16" font-weight="700">orchestrator</text><text class="dgm-muted" x="360" y="84" text-anchor="middle" font-size="11">plans · delegates · synthesizes</text></g>
+        <!-- workers -->
+        <g class="pop d2"><rect class="dgm-box" x="70" y="172" width="160" height="76" rx="11"/><text class="dgm-ink" x="150" y="200" text-anchor="middle" font-size="14" font-weight="600">worker A</text><text class="dgm-muted" x="150" y="222" text-anchor="middle" font-size="11">own context</text><text class="dgm-muted" x="150" y="238" text-anchor="middle" font-size="11">+ tools</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="280" y="172" width="160" height="76" rx="11"/><text class="dgm-ink" x="360" y="200" text-anchor="middle" font-size="14" font-weight="600">worker B</text><text class="dgm-muted" x="360" y="222" text-anchor="middle" font-size="11">own context</text><text class="dgm-muted" x="360" y="238" text-anchor="middle" font-size="11">+ tools</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="490" y="172" width="160" height="76" rx="11"/><text class="dgm-ink" x="570" y="200" text-anchor="middle" font-size="14" font-weight="600">worker C</text><text class="dgm-muted" x="570" y="222" text-anchor="middle" font-size="11">own context</text><text class="dgm-muted" x="570" y="238" text-anchor="middle" font-size="11">+ tools</text></g>
+        <!-- caption label -->
+        <text class="dgm-muted" x="360" y="324" text-anchor="middle" font-size="11">results flow back up → orchestrator combines</text>
+      </svg>
+      <figcaption>Orchestrator–worker — fan out subtasks, synthesize the results</figcaption>
+    </figure>
+
+    <p><strong>Pipeline.</strong> Agents in a fixed sequence, each transforming the previous one's output — research → outline → draft → edit. Good when the stages are well-defined and ordered.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 150" role="img" aria-label="A pipeline of specialized agents in sequence: researcher to writer to editor to fact-checker, then done">
+        <!-- connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M150 70 H180" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M310 70 H340" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M470 70 H500" />
+        <path class="dgm-flow draw d4" pathLength="1" d="M630 70 H660" />
+        <!-- stages -->
+        <g class="pop"><rect class="dgm-box" x="20" y="46" width="130" height="48" rx="10"/><text class="dgm-ink" x="85" y="75" text-anchor="middle" font-size="13" font-weight="600">researcher</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="180" y="46" width="130" height="48" rx="10"/><text class="dgm-ink" x="245" y="75" text-anchor="middle" font-size="13" font-weight="600">writer</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="340" y="46" width="130" height="48" rx="10"/><text class="dgm-ink" x="405" y="75" text-anchor="middle" font-size="13" font-weight="600">editor</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="500" y="46" width="130" height="48" rx="10"/><text class="dgm-ink" x="565" y="75" text-anchor="middle" font-size="13" font-weight="600">fact-checker</text></g>
+        <g class="pop d5"><rect class="dgm-box-accent" x="660" y="46" width="50" height="48" rx="10"/><text class="dgm-accent" x="685" y="75" text-anchor="middle" font-size="13" font-weight="700">done</text></g>
+      </svg>
+      <figcaption>Pipeline — each agent transforms the previous one's output</figcaption>
+    </figure>
+
+    <p><strong>Debate / review.</strong> Agents with opposing or complementary roles interact to improve quality — a generator and a critic, or several solvers whose answers get voted on. Good for correctness-critical work where a second opinion pays off.</p>
+
+    <h2>The orchestration problem</h2>
+    <p>Coordinating agents raises questions a single agent never faces, and these are where multi-agent systems get hard:</p>
+    <ul>
+      <li><strong>How do agents communicate?</strong> Usually one agent's text output becomes part of another's input context. But the orchestrator can't dump a worker's entire raw transcript into its own context — it'd blow the window (post #12 again). So workers must return concise, structured summaries, and designing those handoffs is most of the work.</li>
+      <li><strong>Who decides what's done?</strong> Something has to judge when a subtask is complete and when the whole goal is met. Usually the orchestrator, but it has to trust (and sometimes verify) the workers' reports.</li>
+      <li><strong>How do errors propagate?</strong> If a worker quietly fails or hallucinates, the orchestrator may build on a bad result. Error compounding (post #12) gets worse with more agents, not better, unless you add verification.</li>
+      <li><strong>How do you control cost?</strong> This is the big one.</li>
+    </ul>
+
+    <h2>The cost reality</h2>
+    <p>Be clear-eyed: multi-agent systems can be <em>dramatically</em> more expensive than a single agent. Every agent is a full series of model calls (post #6), each re-sending its context every step (post #10). A system with an orchestrator and five workers, each looping many times, can burn an order of magnitude more tokens — and money — than one agent on the same task.</p>
+
+    <pre><code>   single agent:    ~N model calls
+   5-worker system: orchestrator calls + 5 × (worker calls) + synthesis
+                    → easily 5–15× the tokens</code></pre>
+
+    <p>That cost is justified when the task genuinely parallelizes or when multiple perspectives materially improve the result — deep research, large-scale code changes, anything where breadth or cross-checking is the point. It is <em>not</em> justified for tasks a single well-designed agent handles fine. A common, expensive mistake is reaching for a swarm of agents when one good agent with the right tools would do.</p>
+
+    <h2>When multi-agent shines (and when it doesn't)</h2>
+    <p><strong>Good fit:</strong></p>
+    <ul>
+      <li>Tasks that decompose into independent parallel pieces (research many sources, audit many files).</li>
+      <li>Work that benefits from separation of concerns (one agent writes, another reviews).</li>
+      <li>Problems where multiple independent attempts and a vote/synthesis beat a single attempt.</li>
+    </ul>
+    <p><strong>Poor fit:</strong></p>
+    <ul>
+      <li>Tightly sequential tasks where each step depends fully on the last — the coordination overhead buys you nothing.</li>
+      <li>Simple tasks a single agent handles well — you're paying multiples for no gain.</li>
+      <li>Anything where the agents would mostly just pass a giant shared context around — the handoff overhead and context bloat outweigh the benefits.</li>
+    </ul>
+
+    <div class="callout">
+      <div class="k">Rule of thumb</div>
+      <p>Reach for multiple agents when the work is <strong>wide, not when it's merely long</strong>. Width (independent parallel parts) is what multi-agent structure exploits. A long but linear task is usually one agent's job.</p>
+    </div>
+
+    <h2>The takeaway</h2>
+    <p>Multi-agent systems coordinate several specialized agents — via orchestrators, pipelines, or debate — to exploit context isolation, specialization, parallelism, and multiple perspectives. They shine on wide, decomposable, or correctness-critical work and waste money on simple or strictly sequential tasks. The hard parts are communication between agents, deciding when work is done, and keeping both errors and costs from compounding.</p>
+
+    <p>We've now built the whole stack, from tokens to teams of agents. Two big questions remain. First: how do we keep all of this grounded in real, current, trustworthy information rather than the model's frozen, fallible memory? That's retrieval.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="12-what-is-an-agent.html"><div class="k">← Previous</div><h4>What Is an Agent?</h4></a>
+  <a href="14-rag-and-memory.html"><div class="k">Next →</div><h4>RAG &amp; Memory</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 13 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

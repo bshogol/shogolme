@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RAG &amp; Memory — Shogol</title>
+<meta name="description" content="Grounding models in real, current knowledge by fetching the right information at question time and putting it in the context." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 14</span><span>·</span><span>RAG &amp; Memory</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 14</span><span>·</span><span>RAG &amp; Memory</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 14 / 15</b></span><span>6 MIN READ</span><span>MEMORY</span></div>
+  <h1 class="post-title">RAG &amp; Memory</h1>
+  <p class="post-dek">How we ground a frozen, fallible model in real, current knowledge — by fetching the right information at question time and putting it in the context.</p>
+
+  <div class="prose">
+    <p>We've hit the model's two deepest limitations over and over in this series:</p>
+    <ul>
+      <li>It only knows what was in its training data, frozen at the knowledge cutoff (post #5). It doesn't know last week's news, or anything about <em>your</em> private documents.</li>
+      <li>It can hallucinate — produce fluent, confident, false statements — because it's reconstructing patterns, not retrieving facts (post #2).</li>
+    </ul>
+    <p><strong>Retrieval-Augmented Generation (RAG)</strong> is the dominant technique for fixing both at once. The idea is simple and powerful: instead of relying on the model's frozen memory, <em>fetch the relevant information at question time and put it in the context.</em> The model then answers from material right in front of it.</p>
+
+    <h2>The core idea</h2>
+    <p>Don't ask the model to <em>recall</em>. Ask it to <em>read</em>.</p>
+    <pre><code>   Without RAG:
+     user question ──► model answers from frozen memory  (may be stale/wrong)
+
+   With RAG:
+     user question ──► find relevant documents ──► put them in the context
+                   ──► model answers FROM those documents  (current, grounded)</code></pre>
+    <p>It's the difference between a closed-book exam (recall everything from memory) and an open-book one (look it up, then answer). Open book is more reliable — and it lets the model work with information it was never trained on.</p>
+    <p>This is really just tool use (post #11) aimed at knowledge: a "search" tool whose results get fed back into the context. The reason it gets its own name and post is that <em>how you do the search</em> turns out to be subtle and important.</p>
+
+    <h2>How retrieval actually works</h2>
+    <p>The naïve approach — keyword search — misses a lot. Someone asks "how do I reset my password?" but your document says "credential recovery procedure." No keywords overlap, yet they mean the same thing. We need search by <em>meaning</em>, not just words.</p>
+    <p>This is where embeddings come back (post #3). Recall that embeddings turn text into vectors where <em>meaning becomes geometry</em> — similar meanings land near each other in space. RAG uses this for <strong>semantic search</strong>:</p>
+    <pre><code>   1. AHEAD OF TIME (indexing):
+      chop your documents into chunks
+      → turn each chunk into an embedding vector (post #3)
+      → store all vectors in a database
+
+   2. AT QUESTION TIME (retrieval):
+      turn the user's question into a vector too
+      → find the stored chunks whose vectors are NEAREST to it
+      → those are the most semantically relevant chunks
+
+   3. GENERATION:
+      put the retrieved chunks into the context alongside the question
+      → the model answers using them</code></pre>
+    <p>"Reset my password" and "credential recovery procedure" end up close together in vector space even with no shared words, so the right document gets found. The specialized database that stores these vectors and finds nearest neighbors quickly is called a <strong>vector database</strong>, and it's the workhorse of most RAG systems.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 300" role="img" aria-label="The RAG pipeline: a question is embedded, searched against a vector database of indexed documents, the top relevant chunks are retrieved and joined with the question, and the model produces a grounded answer">
+        <!-- connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M132 70 H170" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M242 70 H280" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M385 70 H430" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M360 165 V200" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M520 92 V200" />
+        <path class="dgm-line draw d3" pathLength="1" d="M520 165 V200" stroke-dasharray="4 4"/>
+        <path class="dgm-flow draw d4" pathLength="1" d="M455 235 H530" />
+        <!-- question -->
+        <g class="pop"><rect class="dgm-box-accent" x="20" y="48" width="112" height="44" rx="9"/><text class="dgm-accent" x="76" y="75" text-anchor="middle" font-size="14" font-weight="600">question</text></g>
+        <!-- embed -->
+        <g class="pop d2"><rect class="dgm-box" x="170" y="48" width="72" height="44" rx="9"/><text class="dgm-ink" x="206" y="75" text-anchor="middle" font-size="14" font-weight="600">embed</text></g>
+        <!-- vector search -->
+        <g class="pop d2"><rect class="dgm-box" x="280" y="44" width="105" height="52" rx="10"/><text class="dgm-ink" x="332" y="68" text-anchor="middle" font-size="13" font-weight="600">vector</text><text class="dgm-ink" x="332" y="84" text-anchor="middle" font-size="13" font-weight="600">search</text></g>
+        <!-- top chunks -->
+        <g class="pop d3"><rect class="dgm-box" x="430" y="44" width="180" height="52" rx="10"/><text class="dgm-ink" x="520" y="68" text-anchor="middle" font-size="13" font-weight="600">top relevant chunks</text><text class="dgm-muted" x="520" y="84" text-anchor="middle" font-size="11">nearest neighbours</text></g>
+        <!-- vector DB -->
+        <g class="pop d3"><rect class="dgm-box-accent" x="262" y="118" width="196" height="48" rx="10"/><text class="dgm-accent" x="360" y="139" text-anchor="middle" font-size="13" font-weight="700">vector database</text><text class="dgm-muted" x="360" y="156" text-anchor="middle" font-size="11">your indexed docs</text></g>
+        <!-- prompt: chunks + question -->
+        <g class="pop d4"><rect class="dgm-box" x="262" y="202" width="196" height="48" rx="10"/><text class="dgm-ink" x="360" y="223" text-anchor="middle" font-size="13" font-weight="600">chunks + question</text><text class="dgm-muted" x="360" y="240" text-anchor="middle" font-size="11">the prompt</text></g>
+        <!-- model -->
+        <g class="pop d5"><rect class="dgm-box" x="530" y="202" width="92" height="48" rx="10"/><text class="dgm-ink" x="576" y="231" text-anchor="middle" font-size="14" font-weight="700">model</text></g>
+        <!-- answer -->
+        <g class="pop d5"><rect class="dgm-box-accent" x="530" y="266" width="92" height="26" rx="7"/><text class="dgm-accent" x="576" y="284" text-anchor="middle" font-size="12" font-weight="600">answer</text></g>
+        <path class="dgm-flow draw d4" pathLength="1" d="M576 250 V266" />
+      </svg>
+      <figcaption>The RAG pipeline — embed, search, retrieve, then answer from the chunks</figcaption>
+    </figure>
+
+    <h2>Why RAG is everywhere</h2>
+    <p>RAG hits a sweet spot that pure model approaches can't:</p>
+    <ul>
+      <li><strong>Current and private knowledge.</strong> It connects the model to information that isn't in its weights — your company wiki, today's data, a customer's records — without retraining anything.</li>
+      <li><strong>Fewer hallucinations.</strong> Grounding answers in retrieved text makes the model far more reliable on facts. The information is right there; it doesn't have to guess.</li>
+      <li><strong>Citations and trust.</strong> Because you know which chunks were retrieved, you can show <em>sources</em>. The answer becomes checkable — a huge deal for any serious use.</li>
+      <li><strong>Cheaper than retraining.</strong> Updating knowledge means updating the document index, not running a multimillion-dollar training job (post #5). New info is available the moment you index it.</li>
+      <li><strong>Access control.</strong> You can retrieve only the documents a given user is allowed to see, so the model answers within each user's permissions.</li>
+    </ul>
+    <p>This combination is why RAG became the default architecture for "AI over your own data" — support bots, internal knowledge assistants, document Q&amp;A, and more.</p>
+
+    <h2>RAG is harder than it looks</h2>
+    <p>The diagram is clean; the reality has sharp edges, and most RAG quality problems live in the retrieval step, not the model:</p>
+    <ul>
+      <li><strong>Chunking is finicky.</strong> Split documents too small and each chunk loses its context; too big and you waste the window and dilute relevance. How you cut matters a lot.</li>
+      <li><strong>Retrieval can miss.</strong> If the right chunk doesn't surface in the top results, the model never sees it — and will often answer anyway, from its flawed memory, with no idea it's missing the key fact. Retrieval failures are silent.</li>
+      <li><strong>Garbage in, garbage out.</strong> If your documents are outdated, contradictory, or wrong, the model faithfully repeats the errors. RAG grounds the model in your data — including your data's mistakes.</li>
+      <li><strong>More isn't better.</strong> Stuffing in twenty marginal chunks can bury the one that mattered and confuse the model (the "lost in the middle" effect, post #9). Good systems often <em>re-rank</em> retrieved results and keep only the best few.</li>
+    </ul>
+    <p>Serious RAG systems layer on fixes: combining keyword and semantic search, re-ranking results for relevance, and sometimes letting an agent (post #12) <em>iterate</em> — search, judge whether the results are sufficient, refine the query, search again. That last move is <strong>agentic retrieval</strong>, and it's where RAG and agents merge.</p>
+
+    <h2>Memory: RAG pointed at the past</h2>
+    <p>The same machinery solves another problem we keep running into: an agent's limited context window and lack of long-term memory (post #12).</p>
+    <p>Instead of indexing documents, index the <em>conversation history</em> and the agent's own notes. When something becomes relevant again, retrieve it back into context.</p>
+    <pre><code>   long-term memory = a vector store of past interactions, facts, and notes
+        ─► agent writes important things to it as it goes
+        ─► agent retrieves relevant pieces when the current task needs them</code></pre>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 250" role="img" aria-label="Short-term versus long-term memory: the context window holds only what is relevant right now, while a vector store of past interactions, facts, and notes is written to and retrieved from on demand">
+        <text class="dgm-title" x="360" y="28" text-anchor="middle" font-size="15">Short-term context vs long-term memory</text>
+        <!-- short-term -->
+        <g class="pop"><rect class="dgm-box-accent" x="40" y="60" width="250" height="150" rx="12"/><text class="dgm-accent" x="165" y="92" text-anchor="middle" font-size="14" font-weight="700">CONTEXT WINDOW</text><text class="dgm-muted" x="165" y="120" text-anchor="middle" font-size="12">short-term</text><text class="dgm-muted" x="165" y="150" text-anchor="middle" font-size="12">only what's relevant</text><text class="dgm-muted" x="165" y="168" text-anchor="middle" font-size="12">right now</text><text class="dgm-ink" x="165" y="195" text-anchor="middle" font-size="11">limited &amp; fast</text></g>
+        <!-- long-term -->
+        <g class="pop d3"><rect class="dgm-box" x="430" y="60" width="250" height="150" rx="12"/><text class="dgm-ink" x="555" y="92" text-anchor="middle" font-size="14" font-weight="700">VECTOR STORE</text><text class="dgm-muted" x="555" y="120" text-anchor="middle" font-size="12">long-term memory</text><text class="dgm-muted" x="555" y="150" text-anchor="middle" font-size="12">past interactions,</text><text class="dgm-muted" x="555" y="168" text-anchor="middle" font-size="12">facts &amp; notes</text><text class="dgm-ink" x="555" y="195" text-anchor="middle" font-size="11">vast &amp; on demand</text></g>
+        <!-- write -->
+        <path class="dgm-flow draw d2" pathLength="1" d="M292 110 H428" />
+        <text class="dgm-accent" x="360" y="102" text-anchor="middle" font-size="12" font-weight="600">write</text>
+        <!-- retrieve -->
+        <path class="dgm-flow draw d4" pathLength="1" d="M428 160 H292" />
+        <text class="dgm-accent" x="360" y="182" text-anchor="middle" font-size="12" font-weight="600">retrieve</text>
+      </svg>
+      <figcaption>Memory is RAG aimed at the past — write what matters, retrieve it on demand</figcaption>
+    </figure>
+
+    <p>This gives an agent an effective memory far larger than its context window: it keeps only what's relevant <em>right now</em> in the window and pulls the rest back on demand. It's how an assistant can "remember" your preferences across sessions or an agent can recall what it learned forty steps ago — not by holding it all in context, but by retrieving it when needed. Memory, in this sense, is just RAG aimed at the past instead of at a document store.</p>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>RAG fixes the model's frozen, fallible memory by fetching relevant information at question time and putting it in the context — open-book instead of closed-book. Semantic search over embeddings (meaning as geometry, post #3) finds the right material even without keyword overlap, which makes answers current, grounded, citable, and cheap to update. The hard part is retrieval quality, and the same technique, pointed at an agent's own history, becomes long-term memory.</p>
+    </div>
+    <p>We've built the entire stack now — model, engine, harness, tools, agents, and the knowledge to ground them. The last question is the one that decides whether any of it is actually <em>good</em>: how do we measure quality, manage the risks, and where is all this heading?</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="13-multi-agent-systems.html"><div class="k">← Previous</div><h4>Multi-Agent Systems</h4></a>
+  <a href="15-evaluation-safety-future.html"><div class="k">Next →</div><h4>Evaluation, Safety &amp; What's Next</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 14 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

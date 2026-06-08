@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tokens &amp; Tokenization — Shogol</title>
+<meta name="description" content="How text becomes the numbers a model can chew on — and why tokens quietly explain so many of an LLM's quirks." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 03</span><span>·</span><span>Tokens &amp; Tokenization</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 03</span><span>·</span><span>Tokens &amp; Tokenization</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 03 / 15</b></span><span>5 MIN READ</span><span>FOUNDATIONS</span></div>
+  <h1 class="post-title">Tokens &amp; Tokenization</h1>
+  <p class="post-dek">How raw text becomes the numbers a model can actually chew on — and why those chunks quietly explain so many of an LLM's quirks.</p>
+
+  <div class="prose">
+    <p>We keep saying a model predicts "the next token." Time to find out what a token actually is — because tokens quietly explain a surprising number of an LLM's quirks, from why it's bad at spelling to why your API bill looks the way it does.</p>
+
+    <h2>Models don't read letters or words</h2>
+    <p>A neural network only does math. It can't add "cat" and "dog"; it can only add numbers. So before any text reaches the model, it has to be converted into numbers. That conversion is <strong>tokenization</strong>.</p>
+    <p>The naïve approaches both fail:</p>
+    <ul>
+      <li><strong>One number per letter?</strong> Too granular. The model would waste its capacity rediscovering that "t-h-e" is a common pattern, and sequences would get enormously long.</li>
+      <li><strong>One number per word?</strong> Too coarse. There are millions of words, plus misspellings, names, code, emoji, and other languages. You'd need an impossibly huge vocabulary and still choke on anything new.</li>
+    </ul>
+    <p>So modern models use a middle path: <strong>subword tokens</strong>. Common words get their own token; rarer words get split into pieces. The vocabulary — the full set of tokens a model knows — is typically somewhere around 50,000 to 200,000 entries.</p>
+
+    <h2>What tokens actually look like</h2>
+    <p>Here's how a sentence might break apart (using <code>·</code> to mark a leading space):</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 250" role="img" aria-label="The sentence 'Tokenization is surprisingly weird.' split into seven subword tokens, with common words kept whole and rarer words split">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="15">"Tokenization is surprisingly weird."</text>
+        <!-- token chunks -->
+        <g class="pop"><rect class="dgm-box-accent" x="20" y="62" width="86" height="44" rx="9"/><text class="dgm-accent" x="63" y="89" text-anchor="middle" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">Token</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="114" y="62" width="100" height="44" rx="9"/><text class="dgm-ink" x="164" y="89" text-anchor="middle" font-size="14" font-weight="600" font-family="'JetBrains Mono',monospace">ization</text></g>
+        <g class="pop d2"><rect class="dgm-box" x="222" y="62" width="64" height="44" rx="9"/><text class="dgm-ink" x="254" y="89" text-anchor="middle" font-size="14" font-weight="600" font-family="'JetBrains Mono',monospace">·is</text></g>
+        <g class="pop d3"><rect class="dgm-box-accent" x="294" y="62" width="138" height="44" rx="9"/><text class="dgm-accent" x="363" y="89" text-anchor="middle" font-size="14" font-weight="700" font-family="'JetBrains Mono',monospace">·surprising</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="440" y="62" width="56" height="44" rx="9"/><text class="dgm-ink" x="468" y="89" text-anchor="middle" font-size="14" font-weight="600" font-family="'JetBrains Mono',monospace">ly</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="504" y="62" width="98" height="44" rx="9"/><text class="dgm-ink" x="553" y="89" text-anchor="middle" font-size="14" font-weight="600" font-family="'JetBrains Mono',monospace">·weird</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="610" y="62" width="44" height="44" rx="9"/><text class="dgm-ink" x="632" y="89" text-anchor="middle" font-size="14" font-weight="600" font-family="'JetBrains Mono',monospace">.</text></g>
+        <!-- bracket / note -->
+        <path class="dgm-line draw d4" pathLength="1" d="M20 124 V134 H654 V124" />
+        <text class="dgm-muted" x="337" y="166" text-anchor="middle" font-size="13">one token each · common words stay whole, rarer ones split</text>
+        <!-- accent legend -->
+        <g class="pop d4"><rect class="dgm-box-accent" x="180" y="196" width="22" height="22" rx="5"/></g>
+        <text class="dgm-muted" x="212" y="212" font-size="12">= word kept whole as a single token</text>
+      </svg>
+      <figcaption>Six words, seven tokens — and the leading space rides along</figcaption>
+    </figure>
+
+    <p>A few things to notice, because each one matters in practice:</p>
+    <ul>
+      <li><strong>The leading space is part of the token.</strong> "·is" (with a space) is a different token from "is". This is why models are so sensitive to whitespace.</li>
+      <li><strong>Common words are single tokens; rare words shatter.</strong> "Tokenization" became "Token" + "ization." A made-up or unusual word might become five or six pieces.</li>
+      <li><strong>A rough rule of thumb in English:</strong> ~1 token ≈ 4 characters ≈ ¾ of a word. So 1,000 tokens is roughly 750 words. Other languages, code, and math can be far less efficient.</li>
+    </ul>
+
+    <h2>Why this is the cause of so many quirks</h2>
+    <p>Once you know text is tokens, a whole category of "why is the AI so dumb about this?" moments dissolves.</p>
+    <p><strong>Why models miscount letters.</strong> Ask a model how many "r"s are in "strawberry" and it has historically struggled. Why? It never saw the letters s-t-r-a-w... It saw something like <code>["str", "aw", "berry"]</code>. Asking it to count letters is like asking you to count the brushstrokes in a word you only ever saw as a printed logo. The information has been partly abstracted away.</p>
+    <p><strong>Why rhyming and wordplay can be shaky.</strong> Sound and spelling live at the character level, but the model operates on chunks. It can still do these things because it learned patterns <em>about</em> tokens, but it's working with one hand tied.</p>
+    <p><strong>Why some languages cost more.</strong> Tokenizers are usually trained mostly on English text, so English is tokenized very efficiently. A language with a different script may need two or three times as many tokens to say the same thing — which means it's more expensive to process and eats more of the context window for the same content.</p>
+    <p><strong>Why formatting can break things.</strong> Numbers, code indentation, and unusual Unicode can tokenize in awkward ways, occasionally tripping up otherwise capable models.</p>
+
+    <h2>Tokens are the unit of money and memory</h2>
+    <p>Two of the most practical facts about working with LLMs come straight from tokens:</p>
+    <ol>
+      <li><strong>You pay per token.</strong> Providers bill by tokens in (your prompt) plus tokens out (the response). "Make the prompt shorter" is literally "spend less money." A verbose system prompt that runs on every request can dominate your bill.</li>
+      <li><strong>The context window is measured in tokens.</strong> Every model has a maximum number of tokens it can consider at once — its <em>context window</em>. This includes your prompt <em>and</em> its answer. A "200K context" model can juggle roughly 150,000 words at a time. Run past it and the earliest text falls off the edge or the request is rejected. We'll see in post #6 why this limit exists and in post #14 how we work around it.</li>
+    </ol>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 180" role="img" aria-label="A context window of about 200K tokens, divided into system prompt, conversation history, your message, and room for reply, all competing for one fixed budget">
+        <text class="dgm-title" x="360" y="30" text-anchor="middle" font-size="14">context window · e.g. 200K tokens</text>
+        <!-- outer frame -->
+        <g class="pop"><rect class="dgm-box-accent" x="20" y="48" width="680" height="60" rx="10"/></g>
+        <!-- segments -->
+        <g class="pop d2"><rect class="dgm-box" x="32" y="58" width="150" height="40" rx="7"/><text class="dgm-ink" x="107" y="83" text-anchor="middle" font-size="12" font-weight="600">system prompt</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="190" y="58" width="190" height="40" rx="7"/><text class="dgm-ink" x="285" y="83" text-anchor="middle" font-size="12" font-weight="600">conversation history</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="388" y="58" width="150" height="40" rx="7"/><text class="dgm-ink" x="463" y="83" text-anchor="middle" font-size="12" font-weight="600">your message</text></g>
+        <g class="pop d4"><rect class="dgm-box-accent" x="546" y="58" width="142" height="40" rx="7"/><text class="dgm-accent" x="617" y="83" text-anchor="middle" font-size="12" font-weight="700">room for reply</text></g>
+        <text class="dgm-muted" x="360" y="138" text-anchor="middle" font-size="13">everything competes for the same fixed budget of tokens</text>
+      </svg>
+      <figcaption>One fixed budget — prompt and answer share the same window</figcaption>
+    </figure>
+
+    <p>A surprising amount of practical "prompt engineering" and "context engineering" (post #9) is really just <em>budgeting tokens</em> well: deciding what's worth its space.</p>
+
+    <h2>Embeddings: from token to meaning</h2>
+    <p>One more step before the model proper. A token ID like <code>1842</code> is just an index — it carries no meaning by itself. So each token ID is mapped to a long list of numbers called an <strong>embedding</strong> — typically several thousand numbers, called a vector.</p>
+    <p>The magic is that these vectors are arranged so that <em>meaning becomes geometry</em>. Tokens with similar meanings end up near each other in this high-dimensional space. The classic illustration:</p>
+    <pre><code>vector("king") − vector("man") + vector("woman") ≈ vector("queen")</code></pre>
+    <p>Relationships between concepts show up as consistent directions in the space. "Male → female," "country → capital," "present → past tense" — each is roughly a constant nudge in some direction. The model isn't told any of this; it falls out of learning to predict text well.</p>
+    <p>These embeddings are the actual input to the network. So the real pipeline is:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 200" role="img" aria-label="The pipeline from raw text to tokens to embeddings to the transformer: the word Hi becomes token IDs 9906 and 0, which become vectors of numbers fed into the transformer">
+        <!-- connectors -->
+        <path class="dgm-flow draw" pathLength="1" d="M168 96 H214" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M362 96 H408" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M566 96 H612" />
+        <!-- text -->
+        <g class="pop"><rect class="dgm-box" x="30" y="70" width="138" height="52" rx="10"/><text class="dgm-ink" x="99" y="92" text-anchor="middle" font-size="13" font-weight="600">text</text><text class="dgm-muted" x="99" y="111" text-anchor="middle" font-size="12" font-family="'JetBrains Mono',monospace">"Hi!"</text></g>
+        <!-- tokens -->
+        <g class="pop d2"><rect class="dgm-box" x="214" y="70" width="148" height="52" rx="10"/><text class="dgm-ink" x="288" y="92" text-anchor="middle" font-size="13" font-weight="600">tokens (IDs)</text><text class="dgm-muted" x="288" y="111" text-anchor="middle" font-size="12" font-family="'JetBrains Mono',monospace">[9906, 0]</text></g>
+        <!-- embeddings -->
+        <g class="pop d3"><rect class="dgm-box-accent" x="408" y="70" width="158" height="52" rx="10"/><text class="dgm-accent" x="487" y="92" text-anchor="middle" font-size="13" font-weight="700">embeddings</text><text class="dgm-muted" x="487" y="111" text-anchor="middle" font-size="11" font-family="'JetBrains Mono',monospace">[[0.2,-1.1,…],…]</text></g>
+        <!-- transformer -->
+        <g class="pop d4"><rect class="dgm-box" x="612" y="70" width="96" height="52" rx="10"/><text class="dgm-ink" x="660" y="92" text-anchor="middle" font-size="13" font-weight="600">transformer</text><text class="dgm-muted" x="660" y="111" text-anchor="middle" font-size="11">(post #4)</text></g>
+      </svg>
+      <figcaption>text → tokens → embeddings → the transformer</figcaption>
+    </figure>
+
+    <h2>The takeaway</h2>
+    <p>Tokenization feels like a boring preprocessing detail, but it's load-bearing:</p>
+    <ul>
+      <li>It's why models stumble on spelling, counting letters, and some languages.</li>
+      <li>It's the unit you pay in and the unit your context window is measured in.</li>
+      <li>It's the bridge from raw text to the vectors where meaning lives as geometry.</li>
+    </ul>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>A token isn't a word and isn't a letter — it's a subword chunk, and that single fact explains spelling slip-ups, uneven language costs, your API bill, and the size of the context window all at once.</p>
+    </div>
+
+    <p>Now that we know how text becomes vectors, we can finally open the box and look at the engine that turns those vectors into predictions: the transformer.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="02-what-is-an-llm.html"><div class="k">← Previous</div><h4>What Is a Large Language Model?</h4></a>
+  <a href="04-inside-the-transformer.html"><div class="k">Next →</div><h4>Inside the Transformer</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 03 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

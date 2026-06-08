@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>What Is an Agent? — Shogol</title>
+<meta name="description" content="An agent is a model running in a loop, using tools to pursue a goal — the agentic loop, planning, and memory explained." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 12</span><span>·</span><span>What Is an Agent?</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 12</span><span>·</span><span>What Is an Agent?</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 12 / 15</b></span><span>7 MIN READ</span><span>AGENTS</span></div>
+  <h1 class="post-title">What Is an Agent?</h1>
+  <p class="post-dek">A model running in a loop — observe, think, act, repeat — using tools to pursue a goal, made robust by planning and memory.</p>
+
+  <div class="prose">
+    <p>"Agent" is the most hyped and most slippery word in AI right now. Let's nail it down, because once you've followed the series this far, an agent is not a mystery — it's a natural combination of things you already understand.</p>
+
+    <p>The short definition:</p>
+
+    <blockquote><p>An agent is a model running in a loop, using tools to pursue a goal, deciding for itself what to do at each step until the goal is met.</p></blockquote>
+
+    <p>That's it. No new model magic. An agent is the harness loop (post #10) plus tool use (post #11), pointed at a goal and given the autonomy to keep going. Everything interesting about agents comes from that loop running many times.</p>
+
+    <h2>Chatbot vs. agent</h2>
+    <p>The cleanest way to feel the difference:</p>
+
+    <pre><code>   CHATBOT                          AGENT
+   ───────────────────────          ──────────────────────────────────
+   you ask → it answers             you give a goal → it works toward it
+   one model call per turn          many model calls, looping
+   you drive each step              it decides each step
+   "How do I deploy this?"          "Deploy this." → and it does the steps
+   advises                          acts</code></pre>
+
+    <p>A chatbot is a conversation. An agent is a <em>worker</em>. You hand it an objective and it figures out the sequence of actions — observe, decide, act, observe again — without you steering every move.</p>
+
+    <h2>The agentic loop</h2>
+    <p>Here's the engine, and you've seen every part of it already:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 380" role="img" aria-label="The agentic loop: think, act, observe, repeating in a cycle until the goal is done">
+        <!-- goal banner -->
+        <g class="pop"><rect class="dgm-box-accent" x="160" y="24" width="400" height="42" rx="9"/><text class="dgm-accent" x="360" y="50" text-anchor="middle" font-size="14" font-weight="700">GOAL: find the bug &amp; fix it</text></g>
+        <!-- arrow down into loop -->
+        <path class="dgm-flow draw" pathLength="1" d="M360 66 V92"/>
+        <!-- the three nodes of the cycle -->
+        <g class="pop d2"><rect class="dgm-box" x="280" y="96" width="160" height="56" rx="11"/><text class="dgm-ink" x="360" y="120" text-anchor="middle" font-size="15" font-weight="700">THINK</text><text class="dgm-muted" x="360" y="138" text-anchor="middle" font-size="11">what to do next?</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="470" y="226" width="180" height="56" rx="11"/><text class="dgm-ink" x="560" y="250" text-anchor="middle" font-size="15" font-weight="700">ACT</text><text class="dgm-muted" x="560" y="268" text-anchor="middle" font-size="11">call a tool · read logs</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="70" y="226" width="180" height="56" rx="11"/><text class="dgm-ink" x="160" y="250" text-anchor="middle" font-size="15" font-weight="700">OBSERVE</text><text class="dgm-muted" x="160" y="268" text-anchor="middle" font-size="11">see the result</text></g>
+        <!-- cycle arrows -->
+        <path class="dgm-flow draw d2" pathLength="1" d="M428 152 Q520 175 530 224" marker-end="url(#ah12)"/>
+        <path class="dgm-flow draw d3" pathLength="1" d="M468 258 Q360 300 252 258" marker-end="url(#ah12)"/>
+        <path class="dgm-flow draw d4" pathLength="1" d="M190 224 Q200 175 292 152" marker-end="url(#ah12)"/>
+        <text class="dgm-muted" x="360" y="312" text-anchor="middle" font-size="11">repeat, now better informed</text>
+        <!-- done -->
+        <g class="pop d5"><rect class="dgm-box-accent" x="280" y="334" width="160" height="38" rx="9"/><text class="dgm-accent" x="360" y="358" text-anchor="middle" font-size="13" font-weight="700">goal met → DONE</text></g>
+        <path class="dgm-line draw d4" pathLength="1" d="M360 282 V332" stroke-dasharray="4 4"/>
+        <defs>
+          <marker id="ah12" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto"><path class="dgm-accent" d="M0 0 L8 3.2 L0 6.4 Z"/></marker>
+        </defs>
+      </svg>
+      <figcaption>The agentic loop — think · act · observe · repeat</figcaption>
+    </figure>
+
+    <p>This think → act → observe cycle (often called the ReAct pattern — reason and act) is the heart of every agent. Each loop, the model sees everything that has happened so far and chooses the next action. It's not following a fixed script; it's adapting based on what it learns, the same way you'd debug something: try a thing, see what happens, adjust.</p>
+
+    <p>Crucially, the model itself decides when it's done. When it judges the goal met, it stops looping and reports back. The autonomy people find exciting (and unnerving) about agents is exactly this: <em>the model, not a human, drives the loop.</em></p>
+
+    <h2>What makes an agent more than a loop</h2>
+    <p>A bare loop works for simple tasks. Real agents add a few capabilities that let them handle complex, long-running work:</p>
+
+    <p><strong>Planning.</strong> For a big task, jumping straight to actions leads to flailing. So agents often plan first — break the goal into sub-steps — then execute, re-planning when reality diverges from expectations. This is chain-of-thought (post #9) applied to <em>doing</em> rather than just answering.</p>
+
+    <pre><code>   goal → "1. reproduce the bug  2. locate the cause  3. fix  4. verify"
+        → then work the list, adjusting as new facts come in</code></pre>
+
+    <p><strong>Memory.</strong> A long task can blow past the context window (posts #3, #6). Agents manage this by keeping the important state and shedding the rest: summarizing progress so far, writing notes to a scratchpad or file, or retrieving relevant history on demand (post #14). The agent's effective memory is much larger than its context window because the harness actively curates what's in the window at any moment.</p>
+
+    <p><strong>Reflection.</strong> Better agents check their own work — "did that test actually pass? Does this fix address the root cause?" — and course-correct when something's off. A model reviewing its own output and trying again catches a lot of mistakes that a single-shot answer would ship.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 300" role="img" aria-label="Planning, memory, reflection, and tools wrapped around a model core">
+        <!-- model core -->
+        <g class="pop"><circle class="dgm-box-accent" cx="360" cy="150" r="64"/><text class="dgm-accent" x="360" y="146" text-anchor="middle" font-size="16" font-weight="700">MODEL</text><text class="dgm-muted" x="360" y="166" text-anchor="middle" font-size="11">in a loop</text></g>
+        <!-- four satellites -->
+        <g class="pop d2"><rect class="dgm-box" x="60" y="40" width="170" height="56" rx="11"/><text class="dgm-ink" x="145" y="64" text-anchor="middle" font-size="14" font-weight="600">PLANNING</text><text class="dgm-muted" x="145" y="82" text-anchor="middle" font-size="11">break goal into steps</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="490" y="40" width="170" height="56" rx="11"/><text class="dgm-ink" x="575" y="64" text-anchor="middle" font-size="14" font-weight="600">MEMORY</text><text class="dgm-muted" x="575" y="82" text-anchor="middle" font-size="11">curate the window</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="60" y="204" width="170" height="56" rx="11"/><text class="dgm-ink" x="145" y="228" text-anchor="middle" font-size="14" font-weight="600">REFLECTION</text><text class="dgm-muted" x="145" y="246" text-anchor="middle" font-size="11">check &amp; course-correct</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="490" y="204" width="170" height="56" rx="11"/><text class="dgm-ink" x="575" y="228" text-anchor="middle" font-size="14" font-weight="600">TOOLS</text><text class="dgm-muted" x="575" y="246" text-anchor="middle" font-size="11">reach the outside world</text></g>
+        <!-- spokes -->
+        <path class="dgm-line draw d2" pathLength="1" d="M230 78 L308 122"/>
+        <path class="dgm-line draw d3" pathLength="1" d="M490 78 L412 122"/>
+        <path class="dgm-line draw d4" pathLength="1" d="M230 222 L308 178"/>
+        <path class="dgm-line draw d4" pathLength="1" d="M490 222 L412 178"/>
+      </svg>
+      <figcaption>Planning · memory · reflection · tools — wrapped around the model core</figcaption>
+    </figure>
+
+    <p>Stack these on the loop and you get something that can chew through a multi-step task that no single model call could handle.</p>
+
+    <h2>Why context management is the make-or-break problem</h2>
+    <p>Here's the thing that separates a flashy agent demo from one that actually works on long tasks, and it ties the whole series together.</p>
+
+    <p>Every loop iteration adds to the context: the action taken, the result observed, the reasoning. On a long task that's dozens or hundreds of steps, the context window (the model's only working memory, post #9) fills up fast. Once it's full, something has to give — and what you choose to keep versus discard largely determines whether the agent stays coherent or loses the plot.</p>
+
+    <pre><code>   step 1   [goal][action][result]                      ← plenty of room
+   step 10  [goal][...][...][...][...][...][action][result]  ← getting tight
+   step 40  [goal][???]...overflow... what do we keep?      ← the hard part</code></pre>
+
+    <p>This is <strong>context engineering</strong> (post #9) turned into the central discipline of agent building. Summarize too aggressively and the agent forgets a key detail; summarize too little and it runs out of room mid-task. Much of the real engineering behind capable agents — coding assistants, research agents, computer-use agents — is sophisticated management of this finite window: what to keep verbatim, what to compress, what to offload to external memory, what to retrieve back when relevant.</p>
+
+    <h2>Where agents are working today</h2>
+    <p>Agents shine when a task is multi-step, the environment gives feedback the agent can react to, and the steps can be checked:</p>
+
+    <ul>
+      <li><strong>Coding agents</strong> read a codebase, write changes, run tests, see failures, and iterate — tests are a perfect feedback signal.</li>
+      <li><strong>Research agents</strong> search, read, follow leads, cross-check sources, and synthesize a report.</li>
+      <li><strong>Computer-use agents</strong> operate software through a screen and keyboard the way a person would, for tasks without a clean API.</li>
+      <li><strong>Workflow agents</strong> handle multi-step business processes: triage a ticket, pull the relevant records, draft a response, escalate if needed.</li>
+    </ul>
+
+    <p>The common thread is a clear goal plus a way for the agent to <em>check whether it's making progress</em>. Agents struggle most when there's no feedback signal — when they can't tell whether an action worked, errors compound silently across the loop.</p>
+
+    <h2>The honest caveats</h2>
+    <p>Agents are genuinely powerful and genuinely immature. Worth keeping clear-eyed:</p>
+
+    <ul>
+      <li><strong>Errors compound.</strong> A 95%-reliable step sounds great until you chain twenty of them — overall success can drop alarmingly. Long autonomous chains are fragile; this is why reflection, verification, and human checkpoints matter.</li>
+      <li><strong>They can get stuck or loop.</strong> Without good design an agent can thrash on the same failing action or wander off task.</li>
+      <li><strong>Autonomy + tools + prompt injection = real risk.</strong> Everything from post #11 intensifies. An autonomous agent acting on untrusted input with powerful tools is the sharpest edge of AI safety today. Permissions, sandboxing, and human-in-the-loop confirmation for consequential actions are essential, not optional.</li>
+      <li><strong>They're not magic.</strong> An agent is still the same model from post #2, with the same weaknesses — just given the ability to act on them at scale, for better and worse.</li>
+    </ul>
+
+    <h2>The takeaway</h2>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>An agent is a model in a loop, using tools to pursue a goal and deciding its own next step until done — the harness loop and tool use you already understand, pointed at an objective and given autonomy. Planning, memory, and reflection make it robust; managing the context window is the hard part that decides whether it holds together. Agents are powerful where there's a clear goal and real feedback, and risky exactly because they can act.</p>
+    </div>
+
+    <p>One agent is useful. The next idea is to coordinate <em>several</em> — dividing work the way a team does.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="11-tool-use.html"><div class="k">← Previous</div><h4>Tool Use &amp; Function Calling</h4></a>
+  <a href="13-multi-agent-systems.html"><div class="k">Next →</div><h4>Multi-Agent Systems</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 12 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shogol — From Tokens to Agents</title>
+<meta name="description" content="From Tokens to Agents: a 15-part series on how modern AI actually works — from the raw text a model reads to the agents built on top." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Writing · Building · Shipping</span><span>·</span><span>From Tokens to Agents</span><span>·</span><span>How Modern AI Actually Works</span><span>·</span>
+  <span>Writing · Building · Shipping</span><span>·</span><span>From Tokens to Agents</span><span>·</span><span>How Modern AI Actually Works</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <div class="brand">shogol<b>.</b></div>
+  <nav>
+    <a class="lk" href="#series">The Series</a>
+    <a class="lk" href="https://github.com/bshogol" target="_blank" rel="noopener">GitHub</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<section class="masthead">
+  <div class="meta">
+    <span>THE SHOGOL SERIES</span>
+    <span><b>15 PARTS</b> · UPDATED 2026</span>
+    <span>NO PHD REQUIRED</span>
+  </div>
+  <h1 class="display">From<span class="out">Tokens</span><br>To <span class="fill">Agents.</span></h1>
+  <p class="lede">How modern AI actually works — from the raw text a model reads, to the engines that serve it at scale, to the agents that act on your behalf. Intuition-first, with diagrams. If you can read code and follow an analogy, you can follow this.</p>
+</section>
+
+<section class="plist" id="series">
+  <h2 class="sec">// the series — read top to bottom</h2>
+
+  <a class="row" href="posts/01-the-big-picture.html">
+    <div class="nn">N°01</div>
+    <div class="ttl"><h3>The Big Picture</h3><p>What actually changed, and a map of the whole stack.</p></div>
+    <div class="side"><span class="cat">Foundations</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/02-what-is-an-llm.html">
+    <div class="nn">N°02</div>
+    <div class="ttl"><h3>What Is a Large Language Model?</h3><p>Why "predict the next token" turned out to be so powerful.</p></div>
+    <div class="side"><span class="cat">Foundations</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/03-tokens-and-tokenization.html">
+    <div class="nn">N°03</div>
+    <div class="ttl"><h3>Tokens &amp; Tokenization</h3><p>How text becomes the numbers a model can chew on.</p></div>
+    <div class="side"><span class="cat">Foundations</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/04-inside-the-transformer.html">
+    <div class="nn">N°04</div>
+    <div class="ttl"><h3>Inside the Transformer</h3><p>Attention, embeddings, and what's really happening in there.</p></div>
+    <div class="side"><span class="cat">Foundations</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/05-how-models-are-trained.html">
+    <div class="nn">N°05</div>
+    <div class="ttl"><h3>How Models Are Trained</h3><p>Pretraining, fine-tuning, and the human feedback loop.</p></div>
+    <div class="side"><span class="cat">Training</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/06-inference-generating-text.html">
+    <div class="nn">N°06</div>
+    <div class="ttl"><h3>Inference: How a Model Generates Text</h3><p>Autoregression, sampling, and temperature.</p></div>
+    <div class="side"><span class="cat">Inference</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/07-the-inference-engine.html">
+    <div class="nn">N°07</div>
+    <div class="ttl"><h3>The Inference Engine</h3><p>KV cache, batching, and the economics of serving.</p></div>
+    <div class="side"><span class="cat">Inference</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/08-faster-and-cheaper.html">
+    <div class="nn">N°08</div>
+    <div class="ttl"><h3>Making Models Faster &amp; Cheaper</h3><p>Quantization, distillation, speculative decoding.</p></div>
+    <div class="side"><span class="cat">Inference</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/09-prompting-and-context.html">
+    <div class="nn">N°09</div>
+    <div class="ttl"><h3>Prompting &amp; Context</h3><p>The prompt as a program you write in English.</p></div>
+    <div class="side"><span class="cat">Prompting</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/10-the-harness.html">
+    <div class="nn">N°10</div>
+    <div class="ttl"><h3>The Harness</h3><p>The loop and scaffolding that turn a model into a product.</p></div>
+    <div class="side"><span class="cat">Harness</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/11-tool-use.html">
+    <div class="nn">N°11</div>
+    <div class="ttl"><h3>Tool Use &amp; Function Calling</h3><p>Giving the model hands.</p></div>
+    <div class="side"><span class="cat">Tools</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/12-what-is-an-agent.html">
+    <div class="nn">N°12</div>
+    <div class="ttl"><h3>What Is an Agent?</h3><p>The agentic loop, planning, and memory.</p></div>
+    <div class="side"><span class="cat">Agents</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/13-multi-agent-systems.html">
+    <div class="nn">N°13</div>
+    <div class="ttl"><h3>Multi-Agent Systems</h3><p>Orchestration and dividing the work.</p></div>
+    <div class="side"><span class="cat">Agents</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/14-rag-and-memory.html">
+    <div class="nn">N°14</div>
+    <div class="ttl"><h3>RAG &amp; Memory</h3><p>Grounding models in real, current knowledge.</p></div>
+    <div class="side"><span class="cat">Memory</span><span class="ar">→</span></div>
+  </a>
+  <a class="row" href="posts/15-evaluation-safety-future.html">
+    <div class="nn">N°15</div>
+    <div class="ttl"><h3>Evaluation, Safety &amp; What's Next</h3><p>How we measure quality, manage risk, and where this is heading.</p></div>
+    <div class="side"><span class="cat">Future</span><span class="ar">→</span></div>
+  </a>
+</section>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · 15 PARTS</span>
+  <span>BUILT IN THE OPEN</span>
+</div></footer>
+
+<script src="assets/theme.js"></script>
+</body>
+</html>

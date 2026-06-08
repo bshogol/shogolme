@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Harness — Shogol</title>
+<meta name="description" content="The loop and scaffolding that turn a raw model into a product." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 10</span><span>·</span><span>The Harness</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 10</span><span>·</span><span>The Harness</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 10 / 15</b></span><span>5 MIN READ</span><span>HARNESS</span></div>
+  <h1 class="post-title">The Harness</h1>
+  <p class="post-dek">The loop and scaffolding that turn a stateless model into a product.</p>
+
+  <div class="prose">
+    <p>Here's a fact that surprises people: the chatbot you talk to is not "the model." It's the model <em>plus a substantial amount of code wrapped around it</em>. That wrapper is the <strong>harness</strong> (also called scaffolding), and it's where a raw next-token predictor becomes a usable product.</p>
+
+    <p>If the model is a brain in a jar, the harness is the body, the senses, the reflexes, and the rules of conduct. This post is about what's in that wrapper — because most of the difference between a flaky demo and a reliable product lives here, not in the model.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 280" role="img" aria-label="A brain in a jar versus the same model wrapped in a harness of senses, body, reflexes, and rules">
+        <text class="dgm-title" x="180" y="32" text-anchor="middle" font-size="14">raw model</text>
+        <text class="dgm-title" x="520" y="32" text-anchor="middle" font-size="14">model + harness</text>
+        <!-- brain in a jar -->
+        <g class="pop"><rect class="dgm-box" x="100" y="60" width="160" height="150" rx="12"/><text class="dgm-ink" x="180" y="130" text-anchor="middle" font-size="15" font-weight="700">brain</text><text class="dgm-muted" x="180" y="152" text-anchor="middle" font-size="11">in a jar</text><text class="dgm-muted" x="180" y="196" text-anchor="middle" font-size="11">text in / text out</text></g>
+        <!-- arrow -->
+        <path class="dgm-flow draw" pathLength="1" d="M275 135 H335"/>
+        <!-- harness wrapper -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="350" y="55" width="300" height="170" rx="14"/><text class="dgm-accent" x="500" y="78" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="1">HARNESS</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="455" y="110" width="120" height="60" rx="11"/><text class="dgm-ink" x="515" y="145" text-anchor="middle" font-size="14" font-weight="700">model</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="368" y="92" width="74" height="30" rx="7"/><text class="dgm-muted" x="405" y="112" text-anchor="middle" font-size="10">senses</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="368" y="130" width="74" height="30" rx="7"/><text class="dgm-muted" x="405" y="150" text-anchor="middle" font-size="10">memory</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="368" y="168" width="74" height="30" rx="7"/><text class="dgm-muted" x="405" y="188" text-anchor="middle" font-size="10">reflexes</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="585" y="130" width="56" height="30" rx="7"/><text class="dgm-muted" x="613" y="150" text-anchor="middle" font-size="10">rules</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="455" y="182" width="120" height="30" rx="7"/><text class="dgm-muted" x="515" y="202" text-anchor="middle" font-size="10">tools · loop</text></g>
+      </svg>
+      <figcaption>The harness gives the brain a body</figcaption>
+    </figure>
+
+    <h2>What the raw model actually gives you</h2>
+    <p>Strip away everything and a base model offers a brutally simple interface:</p>
+
+    <pre><code>   text in  ──►  [model]  ──►  text out</code></pre>
+
+    <p>That's the entire contract. No memory of previous calls, no ability to do anything but emit tokens, no notion of "you" versus "it," no rules. Everything else — the conversation that persists, the personality, the safety behavior, the ability to use tools — is constructed <em>around</em> this core by the harness.</p>
+
+    <h2>What a harness does</h2>
+    <p>Let's build one up, piece by piece, starting from that bare <code>text in → text out</code>.</p>
+
+    <p><strong>1. It manages the conversation.</strong> The model is stateless (post #2). So before every call, the harness assembles the full context: the system prompt, the conversation history so far, and your new message — concatenated into one big input.</p>
+
+    <pre><code>   each turn, the harness sends the model the WHOLE conversation again:
+
+   [system prompt][user: hi][assistant: hello!][user: what's 2+2?]
+                                                        └─ your new message</code></pre>
+
+    <p>The "memory" of a chat is an illusion maintained by re-sending the transcript every turn. Which means when a conversation outgrows the context window (post #6), the harness has to do something: drop old messages, summarize them, or otherwise prune. That pruning logic is pure harness, and it's why long chats sometimes seem to forget earlier details.</p>
+
+    <p><strong>2. It sets the system prompt.</strong> Before you ever type anything, the harness has already placed a hidden <strong>system prompt</strong> at the front of the context. This is the model's standing instructions: who it is, how to behave, what it can and can't do, how to format responses, what today's date is. It's often long and carefully engineered (post #9), and it's the single biggest lever the product builder has over behavior. A huge fraction of what feels like a model's "personality" is actually its system prompt.</p>
+
+    <p><strong>3. It parses the output.</strong> The model emits a stream of tokens. The harness turns that stream into something structured: rendering markdown, detecting when the model wants to call a tool (post #11), extracting JSON, catching when it's done. The model produces raw text; the harness gives it meaning.</p>
+
+    <p><strong>4. It enforces rules and safety.</strong> The harness is where guardrails live:</p>
+
+    <pre><code>   user input ─► [input checks] ─► model ─► [output checks] ─► you
+                  block disallowed         filter unsafe content,
+                  requests, detect          redact secrets, enforce
+                  injection attempts        format, verify claims</code></pre>
+
+    <p>These checks — content filters, rate limits, refusal handling, secret redaction — are policy decisions made in code, not emergent properties of the model. When a product feels "safe" or "locked down," that's largely the harness.</p>
+
+    <p><strong>5. It handles the messy reality.</strong> Real systems need retries when a call fails, timeouts, fallback to a smaller model under load, logging, cost tracking, caching (post #7), and streaming the response to your screen (post #6). None of this is "AI" — it's ordinary, essential software engineering that makes the AI dependable.</p>
+
+    <h2>The loop: where it gets interesting</h2>
+    <p>So far the harness is a sophisticated wrapper around a single call. The leap that unlocks everything in the rest of this series is making the harness <em>loop</em>.</p>
+
+    <p>Instead of <code>text in → text out → done</code>, the harness can call the model, look at what it produced, do something with it, and call the model <em>again</em> with the result:</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 320" role="img" aria-label="The harness loop: assemble context, call model, check if the model wants to act, do the action and feed the result back, or return the answer">
+        <!-- assemble context -->
+        <g class="pop"><rect class="dgm-box" x="60" y="40" width="200" height="56" rx="11"/><text class="dgm-ink" x="160" y="65" text-anchor="middle" font-size="14" font-weight="600">assemble context</text><text class="dgm-muted" x="160" y="83" text-anchor="middle" font-size="11">prompt + history</text></g>
+        <!-- call model -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="340" y="40" width="200" height="56" rx="11"/><text class="dgm-accent" x="440" y="73" text-anchor="middle" font-size="15" font-weight="700">call model</text></g>
+        <!-- decision -->
+        <g class="pop d3"><rect class="dgm-box" x="340" y="150" width="200" height="56" rx="11"/><text class="dgm-ink" x="440" y="175" text-anchor="middle" font-size="14" font-weight="600">wants to act?</text><text class="dgm-muted" x="440" y="193" text-anchor="middle" font-size="11">parse output</text></g>
+        <!-- do the action -->
+        <g class="pop d4"><rect class="dgm-box" x="60" y="150" width="200" height="56" rx="11"/><text class="dgm-ink" x="160" y="183" text-anchor="middle" font-size="14" font-weight="600">do the action</text></g>
+        <!-- return answer -->
+        <g class="pop d5"><rect class="dgm-box-accent" x="340" y="252" width="200" height="52" rx="11"/><text class="dgm-accent" x="440" y="284" text-anchor="middle" font-size="14" font-weight="700">return answer</text></g>
+        <!-- flows -->
+        <path class="dgm-flow draw" pathLength="1" d="M260 68 H340"/>
+        <path class="dgm-flow draw d2" pathLength="1" d="M440 96 V150"/>
+        <path class="dgm-flow draw d3" pathLength="1" d="M340 178 H260"/>
+        <text class="dgm-muted" x="300" y="170" text-anchor="middle" font-size="11">yes</text>
+        <path class="dgm-flow draw d4" pathLength="1" d="M160 150 V96 H340"/>
+        <text class="dgm-muted" x="180" y="120" text-anchor="start" font-size="11">feed result back</text>
+        <path class="dgm-flow draw d4" pathLength="1" d="M440 206 V252"/>
+        <text class="dgm-muted" x="455" y="232" text-anchor="start" font-size="11">no</text>
+      </svg>
+      <figcaption>The loop — act, observe, repeat, until done</figcaption>
+    </figure>
+
+    <p>This loop is the dividing line between a <em>chatbot</em> and an <em>agent</em>. A chatbot harness calls the model once per turn and hands you the text. An agent harness keeps the loop running — letting the model act, see results, and decide what to do next — until the task is done (posts #11–12). Same model; a more ambitious harness.</p>
+
+    <h2>Why the harness explains so much</h2>
+    <p>Reframing AI products as "model + harness" clarifies a lot of confusion:</p>
+
+    <ul>
+      <li><strong>Why the same model feels different across products.</strong> Two apps using the identical underlying model can behave very differently because their system prompts, tools, memory handling, and guardrails differ. The harness is the differentiator.</li>
+      <li><strong>Why behavior changes without a new model.</strong> A product can get noticeably better or worse overnight with zero change to the model — someone edited the system prompt or adjusted the loop.</li>
+      <li><strong>Where many "bugs" actually are.</strong> Recall the deleted-file example from post #1. "It ran the command without asking" is a harness decision (no confirmation step), not a model failure. A surprising share of AI mishaps are harness design choices, not model limitations.</li>
+      <li><strong>Why "just use the API" isn't the whole story.</strong> Calling the raw model is easy; building the harness that makes it reliable, safe, and useful is most of the actual work in shipping an AI product.</li>
+    </ul>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>The harness is the code around the model that turns a stateless text predictor into a product: it manages conversation memory, sets the system prompt, parses output, enforces safety, handles failures, and — most importantly — can wrap the model in a <em>loop</em>. That loop is what we're about to exploit. First, though, the model needs a way to reach beyond its own text and actually <em>do</em> things. That's tool use.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="09-prompting-and-context.html"><div class="k">← Previous</div><h4>Prompting &amp; Context</h4></a>
+  <a href="11-tool-use.html"><div class="k">Next →</div><h4>Tool Use &amp; Function Calling</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 10 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

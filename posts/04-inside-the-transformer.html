@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inside the Transformer — Shogol</title>
+<meta name="description" content="Attention, embeddings, and what's really happening inside a transformer." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 04</span><span>·</span><span>Inside the Transformer</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 04</span><span>·</span><span>Inside the Transformer</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 04 / 15</b></span><span>5 MIN READ</span><span>FOUNDATIONS</span></div>
+  <h1 class="post-title">Inside the Transformer</h1>
+  <p class="post-dek">Attention, embeddings, and what's really happening in there — the architecture that turns your vectors into a next-token prediction.</p>
+
+  <div class="prose">
+    <p>We've turned text into tokens and tokens into embedding vectors. Now those vectors enter the model itself. For nearly every important LLM today, that model is a <strong>transformer</strong> — the architecture introduced in 2017 that quietly reset the entire field.</p>
+
+    <p>You don't need the math to understand the <em>idea</em>, and the idea is genuinely beautiful. Let's build it up in layers.</p>
+
+    <h2>The problem transformers solved</h2>
+    <p>Language is full of long-range dependencies. Consider:</p>
+    <blockquote><p>"The trophy didn't fit in the suitcase because <strong>it</strong> was too big."</p></blockquote>
+    <p>What does "it" refer to — the trophy or the suitcase? You know instantly: the trophy. Now flip one word:</p>
+    <blockquote><p>"The trophy didn't fit in the suitcase because <strong>it</strong> was too small."</p></blockquote>
+    <p>Now "it" is the suitcase. Resolving "it" requires connecting it to a word several positions back <em>and</em> reasoning about the rest of the sentence.</p>
+    <p>Older architectures processed text strictly left to right, one word at a time, trying to cram everything they'd seen into a single running summary. They tended to forget distant context and couldn't be parallelized well. Transformers threw that out and asked a different question:</p>
+    <blockquote><p>What if every word could look directly at every other word and decide which ones matter?</p></blockquote>
+    <p>That mechanism is called <strong>attention</strong>, and it's the whole ballgame.</p>
+
+    <h2>Attention, intuitively</h2>
+    <p>Imagine each token gets to ask a question and broadcast an answer:</p>
+    <ul>
+      <li>Every token forms a <strong>query</strong>: "what am I looking for?"</li>
+      <li>Every token also offers a <strong>key</strong>: "here's what I'm about."</li>
+      <li>And a <strong>value</strong>: "here's the information I'll hand over if you attend to me."</li>
+    </ul>
+    <p>To process the token "it," the model takes its query and compares it against the keys of every other token. Tokens whose keys match the query well get high attention scores; the model then pulls in a blend of their values, weighted by those scores.</p>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 360" role="img" aria-label="The token 'it' sends a query and attends to other tokens, attending strongly to 'trophy', somewhat to 'suitcase' and 'big', and near-zero to 'the'">
+        <text class="dgm-title" x="360" y="28" text-anchor="middle" font-size="15">"it" asks: "what noun could I refer to?"</text>
+        <!-- query token -->
+        <g class="pop"><rect class="dgm-box-accent" x="40" y="150" width="120" height="56" rx="11"/><text class="dgm-accent" x="100" y="175" text-anchor="middle" font-size="17" font-weight="700">"it"</text><text class="dgm-muted" x="100" y="195" text-anchor="middle" font-size="11">query</text></g>
+        <!-- attention edges -->
+        <path class="dgm-flow draw" pathLength="1" d="M160 168 C320 100 420 80 500 78" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M160 178 C320 165 420 158 500 158" />
+        <path class="dgm-line draw d3" pathLength="1" d="M160 188 C320 220 420 230 500 238" stroke-dasharray="5 5"/>
+        <path class="dgm-line draw d3" pathLength="1" d="M160 196 C320 290 420 305 500 318" stroke-dasharray="5 5"/>
+        <!-- target tokens -->
+        <g class="pop d2"><rect class="dgm-box" x="500" y="52" width="130" height="52" rx="10"/><text class="dgm-ink" x="540" y="83" text-anchor="middle" font-size="15" font-weight="600">trophy</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="500" y="132" width="130" height="52" rx="10"/><text class="dgm-ink" x="535" y="163" text-anchor="middle" font-size="15" font-weight="600">suitcase</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="500" y="212" width="130" height="52" rx="10"/><text class="dgm-ink" x="528" y="243" text-anchor="middle" font-size="15" font-weight="600">big</text></g>
+        <g class="pop d5"><rect class="dgm-box" x="500" y="292" width="130" height="52" rx="10"/><text class="dgm-muted" x="528" y="323" text-anchor="middle" font-size="15" font-weight="600">the</text></g>
+        <!-- scores -->
+        <text class="dgm-accent" x="658" y="83" font-size="14" font-weight="700">0.6</text>
+        <text class="dgm-muted" x="658" y="163" font-size="14" font-weight="700">0.3</text>
+        <text class="dgm-muted" x="658" y="243" font-size="14" font-weight="700">0.1</text>
+        <text class="dgm-muted" x="658" y="323" font-size="14" font-weight="700">~0</text>
+      </svg>
+      <figcaption>Content-based lookup — "it" pulls mostly from the meaning of "trophy"</figcaption>
+    </figure>
+
+    <p>That's attention: a learned, content-based lookup where every token decides, for itself, which other tokens to listen to. Crucially, the words "trophy" and "it" can be far apart and it costs the model nothing extra to connect them directly — no information has to survive a long relay.</p>
+    <p>And because every token does this comparison against every other token <em>at the same time</em>, the whole thing parallelizes onto modern hardware. That combination — long-range connections <em>and</em> parallelism — is why transformers won.</p>
+
+    <h2>Stacking it up: depth creates abstraction</h2>
+    <p>A single attention step is useful but limited. So transformers stack many <strong>layers</strong>, dozens to over a hundred in big models. Each layer has two parts:</p>
+    <ol>
+      <li>An <strong>attention</strong> block — tokens exchange information, as above.</li>
+      <li>A <strong>feed-forward</strong> block — each token is individually run through a small network that transforms its representation, where much of the model's stored "knowledge" is thought to live.</li>
+    </ol>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 440" role="img" aria-label="Embeddings flow up through a stack of N transformer layers, each combining attention and feed-forward, producing final vectors that feed a prediction">
+        <!-- input -->
+        <g class="pop"><rect class="dgm-box-accent" x="280" y="20" width="160" height="44" rx="10"/><text class="dgm-accent" x="360" y="47" text-anchor="middle" font-size="14" font-weight="700">embeddings</text></g>
+        <path class="dgm-flow draw" pathLength="1" d="M360 64 V84" />
+        <!-- layer 1 -->
+        <g class="pop d2"><rect class="dgm-box" x="150" y="84" width="420" height="56" rx="11"/><text class="dgm-ink" x="360" y="109" text-anchor="middle" font-size="14" font-weight="600">Layer 1</text><text class="dgm-muted" x="360" y="127" text-anchor="middle" font-size="11">attention + feed-forward</text></g>
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 140 V160" />
+        <!-- layer 2 -->
+        <g class="pop d3"><rect class="dgm-box" x="150" y="160" width="420" height="56" rx="11"/><text class="dgm-ink" x="360" y="185" text-anchor="middle" font-size="14" font-weight="600">Layer 2</text><text class="dgm-muted" x="360" y="203" text-anchor="middle" font-size="11">attention + feed-forward</text></g>
+        <path class="dgm-flow draw d3" pathLength="1" d="M360 216 V236" />
+        <!-- ellipsis -->
+        <g class="pop d4"><rect class="dgm-box" x="240" y="236" width="240" height="44" rx="10"/><text class="dgm-muted" x="360" y="263" text-anchor="middle" font-size="16" font-weight="700">⋯ &nbsp;(×N layers)</text></g>
+        <path class="dgm-flow draw d4" pathLength="1" d="M360 280 V300" />
+        <!-- layer N -->
+        <g class="pop d4"><rect class="dgm-box" x="150" y="300" width="420" height="56" rx="11"/><text class="dgm-ink" x="360" y="325" text-anchor="middle" font-size="14" font-weight="600">Layer N</text><text class="dgm-muted" x="360" y="343" text-anchor="middle" font-size="11">attention + feed-forward</text></g>
+        <path class="dgm-flow draw d4" pathLength="1" d="M360 356 V376" />
+        <!-- output -->
+        <g class="pop d5"><rect class="dgm-box" x="200" y="376" width="180" height="48" rx="10"/><text class="dgm-ink" x="290" y="405" text-anchor="middle" font-size="14" font-weight="600">final vectors</text></g>
+        <path class="dgm-flow draw d4" pathLength="1" d="M380 400 H418" />
+        <g class="pop d5"><rect class="dgm-box-accent" x="420" y="376" width="160" height="48" rx="10"/><text class="dgm-accent" x="500" y="405" text-anchor="middle" font-size="14" font-weight="700">prediction</text></g>
+      </svg>
+      <figcaption>Depth refines meaning — surface patterns at the bottom, abstract concepts near the top</figcaption>
+    </figure>
+
+    <p>The intuition for depth: early layers handle surface patterns (this token is a verb, this phrase is a date), middle layers assemble meaning (who did what to whom), and later layers work with abstract, task-relevant concepts. Each layer refines the representation a little more, the way understanding a sentence happens in stages in your own head. Nobody programmed these roles; they emerge from training.</p>
+
+    <h2>Multiple heads: paying attention several ways at once</h2>
+    <p>In practice, attention isn't done once per layer but in parallel "heads." One head might track grammatical subject–verb agreement, another might link pronouns to their referents, another might follow quotation marks. This is <strong>multi-head attention</strong>: several independent attention patterns running side by side, then combined. It lets a single layer attend to different <em>kinds</em> of relationships simultaneously.</p>
+
+    <h2>From final vectors to the next token</h2>
+    <p>After the last layer, each token position has a rich vector. To actually predict the next token, the model takes the vector at the <em>final</em> position and projects it out to a score for every token in the vocabulary. Run those scores through a step that turns them into probabilities, and you get exactly the distribution from post #2:</p>
+
+    <pre><code>   final vector  ──►  scores over the whole vocabulary  ──►  probabilities
+                       "Paris"   8.2  ───┐
+                       "Lyon"    3.1     ├──►  Paris  91%
+                       "London"  2.7     │     Lyon    4%
+                       ...              ─┘     ...</code></pre>
+
+    <p>Then we pick a token (post #6 is all about <em>how</em> we pick), append it, and run the whole stack again for the next one. Yes — the entire transformer runs once per token generated. That fact is the reason inference engines (post #7) exist.</p>
+
+    <h2>A few things worth knowing</h2>
+    <ul>
+      <li><strong>Position matters, and it's added deliberately.</strong> Attention by itself treats input as an unordered set — it has no inherent sense of word order. So models inject <strong>positional information</strong> so the model knows "the cat sat" differs from "sat the cat." Clever schemes here are a big part of how models handle long contexts.</li>
+      <li><strong>The context window comes from here.</strong> Attention compares every token to every other token, so naïvely the cost grows with the <em>square</em> of the sequence length. Double the context, quadruple the work. That quadratic cost is why long context is expensive and why so much research goes into making attention cheaper.</li>
+      <li><strong>"Decoder-only" is the dominant design.</strong> Most chat and coding models are "decoder-only" transformers: they only ever predict the next token given previous ones, never peeking ahead. Simple, and it scales.</li>
+    </ul>
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>The transformer's core trick is attention: letting every token directly query every other token and pull in what's relevant, in parallel, across many stacked layers that build up abstraction. That's the machine turning your embedding vectors into a next-token prediction.</p>
+    </div>
+
+    <p>But a fresh transformer with random weights predicts gibberish. Everything it "knows" has to be <em>learned</em>. How that learning happens — and how a raw text predictor becomes a helpful, instruction-following assistant — is next.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="03-tokens-and-tokenization.html"><div class="k">← Previous</div><h4>Tokens &amp; Tokenization</h4></a>
+  <a href="05-how-models-are-trained.html"><div class="k">Next →</div><h4>How Models Are Trained</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 04 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>

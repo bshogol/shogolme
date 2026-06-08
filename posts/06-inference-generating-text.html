@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inference: How a Model Generates Text — Shogol</title>
+<meta name="description" content="Autoregression, sampling, and temperature — how a trained model actually turns a prompt into text." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>From Tokens to Agents</span><span>·</span><span>Part 06</span><span>·</span><span>Inference</span><span>·</span>
+  <span>From Tokens to Agents</span><span>·</span><span>Part 06</span><span>·</span><span>Inference</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../index.html">← All posts</a></div>
+
+<article class="article">
+  <div class="post-meta"><span><b>PART 06 / 15</b></span><span>6 MIN READ</span><span>INFERENCE</span></div>
+  <h1 class="post-title">Inference: How a Model Generates Text</h1>
+  <p class="post-dek">Autoregression, sampling, and temperature — the choices that turn a frozen pile of weights into the answer scrolling across your screen.</p>
+
+  <div class="prose">
+    <p>Training is done. The weights are frozen. Now you type a question and the model answers. That act — running a trained model to produce output — is <strong>inference</strong>, and it's what happens billions of times a day around the world.</p>
+
+    <p>It's also full of choices that directly shape what you experience as the model's "creativity," "reliability," and "speed." Let's open it up.</p>
+
+    <h2>One token at a time, on repeat</h2>
+    <p>Recall the autoregressive loop from post #2. Here it is again, now that we know what's inside the <code>model()</code> call (the whole transformer from post #4):</p>
+
+    <pre><code>   prompt: "Write a tagline for a coffee shop:"
+
+   step 1:  run the model over the prompt        → predict "Brew"
+   step 2:  run it over prompt + "Brew"           → predict "ed"
+   step 3:  run it over prompt + "Brewed"         → predict " to"
+   step 4:  run it over prompt + "Brewed to"      → predict " perfection"
+   ...
+   until:   the model predicts a special "stop" token, or hits a length limit</code></pre>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 300" role="img" aria-label="The autoregressive loop: the model predicts the next token, which is appended and fed back in as input">
+        <!-- prompt -->
+        <g class="pop"><rect class="dgm-box" x="30" y="120" width="150" height="60" rx="11"/><text class="dgm-ink" x="105" y="148" text-anchor="middle" font-size="14" font-weight="600">prompt + tokens</text><text class="dgm-muted" x="105" y="168" text-anchor="middle" font-size="11">so far</text></g>
+        <!-- arrow into model -->
+        <path class="dgm-flow draw" pathLength="1" d="M180 150 H270" />
+        <!-- model -->
+        <g class="pop d2"><rect class="dgm-box" x="270" y="115" width="170" height="70" rx="12"/><text class="dgm-ink" x="355" y="143" text-anchor="middle" font-size="16" font-weight="700">the model</text><text class="dgm-muted" x="355" y="164" text-anchor="middle" font-size="11">(transformer)</text></g>
+        <!-- arrow to distribution -->
+        <path class="dgm-flow draw d2" pathLength="1" d="M440 150 H530" />
+        <!-- sample -->
+        <g class="pop d3"><rect class="dgm-box-accent" x="530" y="115" width="160" height="70" rx="12"/><text class="dgm-accent" x="610" y="143" text-anchor="middle" font-size="14" font-weight="700">sample</text><text class="dgm-muted" x="610" y="164" text-anchor="middle" font-size="11">→ next token</text></g>
+        <!-- feedback loop -->
+        <path class="dgm-flow draw d3" pathLength="1" d="M610 185 V250 H105 V180" />
+        <text class="dgm-accent" x="360" y="272" text-anchor="middle" font-size="12" font-weight="600">append token, repeat — until stop token or length limit</text>
+      </svg>
+      <figcaption>The autoregressive loop — each new token is fed back in as input</figcaption>
+    </figure>
+
+    <p>Two consequences fall out of this immediately, and they explain a lot:</p>
+    <ul>
+      <li><strong>The model generates left to right and can't edit.</strong> Once a token is emitted, it's committed; the model can't go back and revise an earlier word. This is why models sometimes write themselves into a corner and then awkwardly recover — they're improvising forward, never backward.</li>
+      <li><strong>Output is inherently sequential.</strong> Token 50 can't be computed until token 49 exists. This is <em>the</em> fundamental reason long responses take time, and it shapes every optimization in post #7. Reading the prompt can be done in parallel; writing the answer cannot.</li>
+    </ul>
+
+    <p>This also reveals two distinct phases, which the rest of the series will lean on:</p>
+
+    <pre><code>   ┌──────────────┐     ┌────────────────────────────┐
+   │   PREFILL    │ ──► │        DECODE              │
+   │ read prompt  │     │ generate tokens one by one │
+   │ all at once  │     │ sequential, one per step   │
+   │ (fast/parallel)    │ (slow part — the bottleneck)│
+   └──────────────┘     └────────────────────────────┘</code></pre>
+
+    <h2>The crucial choice: how to pick the next token</h2>
+    <p>Here's the part most people don't realize. The model doesn't output <em>a</em> word — it outputs a <em>probability distribution</em> over every possible next token (post #4). Something has to decide which one to actually pick. That decision is <strong>sampling</strong>, and it's where a lot of the model's apparent personality comes from.</p>
+
+    <p>Say the distribution after "The weather today is" looks like:</p>
+
+    <pre><code>   "sunny"   45%   ████████████████████
+   "cloudy"  25%   ███████████
+   "warm"    15%   ███████
+   "rainy"   10%   ████
+   "cold"     5%   ██</code></pre>
+
+    <p>What now?</p>
+
+    <p><strong>Option A — always take the most likely (greedy).</strong> Pick "sunny" every time. Deterministic and safe, but it makes the model repetitive and bland, and it can get stuck in loops ("the the the"). Great for tasks with one right answer, dull for writing.</p>
+
+    <p><strong>Option B — sample proportionally.</strong> Roll a weighted die: 45% of the time "sunny," 25% "cloudy," and so on. Now the model is varied and creative — and non-deterministic, which is why asking the same question twice can give different answers.</p>
+
+    <p>In practice we tune <em>how adventurous</em> that die is, with a few knobs:</p>
+
+    <h2>The knobs you can actually turn</h2>
+    <p><strong>Temperature</strong> rescales the distribution before sampling — it's the single most important knob.</p>
+
+    <pre><code>   low temperature (≈0.2):  sharpen toward the top choice
+        "sunny" 80%  "cloudy" 12%  "warm" 5%  ...     → focused, predictable
+
+   high temperature (≈1.2): flatten the distribution
+        "sunny" 32%  "cloudy" 24%  "warm" 20% ...      → diverse, surprising, riskier</code></pre>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 320" role="img" aria-label="How temperature reshapes the next-token probability distribution: low temperature sharpens toward the top choice, high temperature flattens it">
+        <text class="dgm-title" x="180" y="28" text-anchor="middle" font-size="14">LOW TEMP (≈0.2) — sharpen</text>
+        <text class="dgm-title" x="540" y="28" text-anchor="middle" font-size="14">HIGH TEMP (≈1.2) — flatten</text>
+        <!-- baseline -->
+        <path class="dgm-line draw" pathLength="1" d="M40 270 H320" />
+        <path class="dgm-line draw" pathLength="1" d="M400 270 H700" />
+        <!-- LOW: tall first bar, tiny rest -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="52" y="80" width="44" height="190"/><text class="dgm-muted" x="74" y="288" text-anchor="middle" font-size="10">sunny</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="116" y="232" width="44" height="38"/><text class="dgm-muted" x="138" y="288" text-anchor="middle" font-size="10">cloudy</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="180" y="248" width="44" height="22"/><text class="dgm-muted" x="202" y="288" text-anchor="middle" font-size="10">warm</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="244" y="256" width="44" height="14"/><text class="dgm-muted" x="266" y="288" text-anchor="middle" font-size="10">rainy</text></g>
+        <!-- HIGH: more even bars -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="412" y="148" width="44" height="122"/><text class="dgm-muted" x="434" y="288" text-anchor="middle" font-size="10">sunny</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="476" y="178" width="44" height="92"/><text class="dgm-muted" x="498" y="288" text-anchor="middle" font-size="10">cloudy</text></g>
+        <g class="pop d3"><rect class="dgm-box" x="540" y="194" width="44" height="76"/><text class="dgm-muted" x="562" y="288" text-anchor="middle" font-size="10">warm</text></g>
+        <g class="pop d4"><rect class="dgm-box" x="604" y="214" width="44" height="56"/><text class="dgm-muted" x="626" y="288" text-anchor="middle" font-size="10">rainy</text></g>
+        <!-- arrow between -->
+        <path class="dgm-flow draw d4" pathLength="1" d="M334 175 H388" />
+      </svg>
+      <figcaption>Temperature reshapes the same distribution — focused on the left, diverse on the right</figcaption>
+    </figure>
+
+    <ul>
+      <li><strong>Low temperature</strong> → focused, consistent, repetitive. Use it for code, math, data extraction, anything with a correct answer.</li>
+      <li><strong>High temperature</strong> → creative, varied, occasionally unhinged. Use it for brainstorming, fiction, lots-of-options tasks.</li>
+    </ul>
+
+    <p><strong>Top-p (nucleus sampling)</strong> is a popular companion: instead of considering all tokens, keep only the smallest set whose probabilities add up to, say, 90%, and sample from those. It cuts off the long tail of absurd options while keeping healthy variety. (A relative, <strong>top-k</strong>, just keeps the k most likely tokens.)</p>
+
+    <p>Together these let you dial the model from "boringly reliable" to "wildly inventive." Picking well for the task is half of getting good results.</p>
+
+    <h2>Where the context window bites</h2>
+    <p>We met the context window in post #3 as a token budget. Inference is where it actually bites. At every single decode step, the model attends over <em>all</em> prior tokens — prompt plus everything generated so far. Two implications:</p>
+    <ul>
+      <li>The window has to hold the prompt <em>and</em> the growing response. A long prompt leaves less room to answer.</li>
+      <li>When a conversation exceeds the window, something has to give: the oldest messages get dropped, summarized, or the request is refused. That "amnesia" in long chats isn't the model forgetting — it's the harness pruning to fit (post #10).</li>
+    </ul>
+
+    <p>And recall from post #4 that attention cost grows roughly with the square of the sequence length. So a long context isn't just a memory question; it's a real compute cost paid on every token. That tension is exactly what the inference engine is built to manage.</p>
+
+    <h2>"Streaming" and why it feels alive</h2>
+    <p>When you watch a model type its answer word by word, that's not a UI gimmick — it's the decode loop made visible. Each token is sent to your screen the instant it's produced, rather than waiting for the whole response. Because decode is sequential anyway, streaming is essentially free, and it makes the wait feel much shorter. The first token typically takes the longest (that's the prefill phase finishing); after that, tokens stream at a fairly steady pace.</p>
+
+    <h2>Putting it together</h2>
+    <p>A single inference request looks like this end to end:</p>
+
+    <pre><code>   your text
+      │  tokenize (post #3)
+      ▼
+   [tokens] ──► PREFILL: model reads the whole prompt at once
+      │
+      ▼
+   DECODE loop:
+      run model ─► probability distribution ─► sample (temperature/top-p)
+        ▲                                            │
+        └────────── append token, repeat ◄───────────┘
+      │  until a stop token or length limit
+      ▼
+   [output tokens] ──► detokenize ──► text on your screen (streamed)</code></pre>
+
+    <p>Every part of this you can now name: the tokenizer (post #3), the transformer doing the prediction (post #4), the weights shaped by training (post #5), and the sampling choices we just covered.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Inference is the autoregressive loop in action: read the prompt in one parallel prefill, then generate tokens one at a time, each chosen by sampling from a probability distribution you can tune with temperature and top-p. The sequential, no-take-backs nature of decode is the root of both the cost and the latency of running these models.</p>
+    </div>
+
+    <p>Which raises the question every company serving an LLM has to answer: how do you run this loop for millions of users at once without going broke? That's the job of the inference engine.</p>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="05-how-models-are-trained.html"><div class="k">← Previous</div><h4>How Models Are Trained</h4></a>
+  <a href="07-the-inference-engine.html"><div class="k">Next →</div><h4>The Inference Engine</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>FROM TOKENS TO AGENTS · PART 06 / 15</span>
+  <a href="../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../assets/theme.js"></script>
+</body>
+</html>
