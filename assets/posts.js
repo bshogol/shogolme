@@ -47,5 +47,6 @@ window.SHOGOL_POSTS = [
   { series:"advanced-go-patterns", part:7,  date:"2026-04-22", category:"Types", title:"Generics", dek:"Constraints, inference, and when not to reach for them.", url:"posts/advanced-go-patterns/07-generics.html" },
   { series:"advanced-go-patterns", part:8,  date:"2026-05-11", category:"Performance", title:"Performance & Memory", dek:"Escape analysis, sync.Pool, allocations, and profiling.", url:"posts/advanced-go-patterns/08-performance-and-memory.html" },
   { series:"advanced-go-patterns", part:9,  date:"2026-05-24", category:"Resiliency", title:"Resiliency Patterns", dek:"Retries, backoff, circuit breakers, timeouts, and bulkheads.", url:"posts/advanced-go-patterns/09-resiliency-patterns.html" },
-  { series:"advanced-go-patterns", part:10, date:"2026-06-06", category:"RPC", title:"gRPC Patterns", dek:"Interceptors, streaming, deadlines, and idiomatic errors.", url:"posts/advanced-go-patterns/10-grpc-patterns.html" }
+  { series:"advanced-go-patterns", part:10, date:"2026-06-06", category:"RPC", title:"gRPC Patterns", dek:"Interceptors, streaming, deadlines, and idiomatic errors.", url:"posts/advanced-go-patterns/10-grpc-patterns.html" },
+  { series:"advanced-go-patterns", part:11, date:"2026-06-20", category:"Background", title:"Background Workers & Job Processing", dek:"Durable, observable background work on top of the concurrency and resiliency primitives you've already learned.", url:"posts/advanced-go-patterns/11-background-workers.html" }
 ];

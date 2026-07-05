@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Background Workers &amp; Job Processing — Shogol</title>
+<meta name="description" content="Durable, observable background work on top of the concurrency and resiliency primitives you've already learned." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
+<link rel="stylesheet" href="../../assets/kinetic.css" />
+<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="marq"><div class="track">
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 11</span><span>·</span><span>Background Workers &amp; Job Processing</span><span>·</span>
+  <span>Advanced Go Patterns</span><span>·</span><span>Part 11</span><span>·</span><span>Background Workers &amp; Job Processing</span><span>·</span>
+</div></div>
+
+<header class="hdr">
+  <a class="brand" href="../../index.html">shogol<b>.</b></a>
+  <nav>
+    <a class="lk" href="../../index.html">All Posts</a>
+    <button class="toggle" aria-label="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="backlink"><a href="../../index.html">← All posts</a> <span class="sep">·</span> <a href="../../series.html?s=advanced-go-patterns">Advanced Go Patterns ↑</a></div>
+
+<article class="article">
+  <div class="post-meta"><span class="date">JUN 20, 2026</span><span><b>PART 11 / 11</b></span><span>7 MIN READ</span><span>BACKGROUND</span></div>
+  <h1 class="post-title">Background Workers &amp; Job Processing</h1>
+  <p class="post-dek">Durable, observable background work on top of the concurrency and resiliency primitives you've already learned.</p>
+
+  <div class="prose">
+    <p>Request handlers are easy to reason about: they start, they finish, the client is waiting. Background work is different. A job might take seconds or hours. The caller is long gone. The process can restart. You need ownership of the lifecycle, durability, idempotency, bounded concurrency, and a way to observe what actually happened.</p>
+
+    <p>This post builds directly on <a href="04-concurrency-patterns.html">concurrency patterns</a>, <a href="06-synchronization.html">synchronization</a>, <a href="05-context.html">context</a>, and <a href="09-resiliency-patterns.html">resiliency</a>. We'll turn "just spin a goroutine" into something you can run in production.</p>
+
+    <h2>Own the loop, own shutdown</h2>
+    <p>The simplest reliable worker is a goroutine that owns its work loop and participates in graceful shutdown. Don't fire-and-forget.</p>
+
+    <pre><code>type Worker struct {
+    jobs chan Job
+    wg   sync.WaitGroup
+    stop chan struct{}
+}
+
+func (w *Worker) Run(ctx context.Context) {
+    for {
+        select {
+        case job := &lt;-w.jobs:
+            w.wg.Add(1)
+            go func(j Job) {
+                defer w.wg.Done()
+                w.process(ctx, j)
+            }(job)
+        case &lt;-ctx.Done():
+            return
+        }
+    }
+}
+
+func (w *Worker) Stop() {
+    close(w.stop)
+    w.wg.Wait()
+}</code></pre>
+
+    <p>Key points: the worker loop is the owner. <code>Stop</code> waits for in-flight jobs. Use the incoming context for cancellation inside <code>process</code>. This is the foundation before you add queues or retries.</p>
+
+    <h2>Queues: in-memory vs durable</h2>
+    <p>For low-stakes work an in-memory channel is fine. For anything that must survive restarts you need a durable queue (Redis streams, Postgres, SQS, etc.). The shape is the same:</p>
+
+    <pre><code>type Queue interface {
+    Enqueue(ctx context.Context, job Job) error
+    Dequeue(ctx context.Context) (Job, error) // blocks or returns ctx err
+    Ack(ctx context.Context, job Job) error
+    Nack(ctx context.Context, job Job) error
+}</code></pre>
+
+    <p>The worker pulls, processes, then acks. If the process dies before ack, the job becomes visible again after a visibility timeout. That's the contract you must honor.</p>
+
+    <h2>Idempotency is non-negotiable</h2>
+    <p>Jobs will be delivered at-least-once. Make them safe to run twice.</p>
+
+    <pre><code>func (w *Worker) process(ctx context.Context, j Job) error {
+    if w.seen(ctx, j.ID) { // dedup by stable key
+        return nil
+    }
+    if err := w.doWork(ctx, j); err != nil {
+        return err
+    }
+    w.markSeen(ctx, j.ID)
+    return nil
+}</code></pre>
+
+    <p>Use a stable business key (order ID, user ID + action, etc.), not the queue message ID. Store the "processed" marker with the same durability as your side effects.</p>
+
+    <h2>Bounded concurrency + context everywhere</h2>
+    <p>Never let background work consume the whole machine. Use a weighted semaphore (from post 6) or a worker pool with a fixed size.</p>
+
+    <pre><code>sem := semaphore.NewWeighted(8)
+
+func (w *Worker) process(ctx context.Context, j Job) {
+    if err := sem.Acquire(ctx, 1); err != nil {
+        return // context cancelled while waiting
+    }
+    defer sem.Release(1)
+
+    ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+    defer cancel()
+
+    // actual work here — every subcall must respect ctx
+}</code></pre>
+
+    <figure class="diagram reveal">
+      <svg viewBox="0 0 720 260" role="img" aria-label="Background worker architecture: producers enqueue jobs into a durable queue; a fixed pool of workers dequeue, process with context and bounded concurrency, then ack or send to dead-letter queue on repeated failure">
+        <!-- producers -->
+        <g class="pop"><rect class="dgm-box" x="30" y="30" width="120" height="50" rx="8"/><text class="dgm-ink" x="90" y="60" text-anchor="middle" font-size="13" font-weight="600">producers</text></g>
+        <!-- queue -->
+        <g class="pop d2"><rect class="dgm-box-accent" x="200" y="25" width="160" height="60" rx="10"/><text class="dgm-accent" x="280" y="55" text-anchor="middle" font-size="14" font-weight="700">durable queue</text><text class="dgm-muted" x="280" y="72" text-anchor="middle" font-size="10">visibility timeout</text></g>
+        <!-- workers -->
+        <g class="pop d3"><rect class="dgm-box" x="420" y="20" width="140" height="70" rx="10"/><text class="dgm-ink" x="490" y="45" text-anchor="middle" font-size="13" font-weight="600">workers (N=8)</text><text class="dgm-muted" x="490" y="65" text-anchor="middle" font-size="10">bounded · ctx-aware</text></g>
+        <!-- success -->
+        <g class="pop d4"><rect class="dgm-box" x="420" y="130" width="140" height="40" rx="8"/><text class="dgm-ink" x="490" y="155" text-anchor="middle" font-size="13">success / ack</text></g>
+        <!-- DLQ -->
+        <g class="pop d5"><rect class="dgm-box" x="200" y="140" width="160" height="40" rx="8"/><text class="dgm-ink" x="280" y="165" text-anchor="middle" font-size="13">dead-letter queue</text></g>
+
+        <!-- arrows -->
+        <path class="dgm-flow draw" pathLength="1" d="M150 55 H200" />
+        <path class="dgm-flow draw d2" pathLength="1" d="M360 55 H420" />
+        <path class="dgm-flow draw d3" pathLength="1" d="M490 90 V130" />
+        <path class="dgm-flow draw d4" pathLength="1" d="M360 160 H280" />
+        <path class="dgm-line draw d4" pathLength="1" d="M200 160 H150" stroke-dasharray="4 4" />
+
+        <text class="dgm-muted" x="175" y="45" font-size="10">enqueue</text>
+        <text class="dgm-muted" x="390" y="45" font-size="10">dequeue</text>
+        <text class="dgm-muted" x="510" y="120" font-size="10">after retries</text>
+      </svg>
+      <figcaption>Fixed workers pull from a durable queue; success acks, repeated failure goes to DLQ</figcaption>
+    </figure>
+
+    <h2>Retries, backoff, and the dead-letter queue</h2>
+    <p>Use the same retry discipline from post 9, but inside the worker. After a configured number of attempts, move the job to a dead-letter queue instead of dropping it or looping forever.</p>
+
+    <pre><code>for attempt := 0; attempt &lt; maxAttempts; attempt++ {
+    if err := doWithTimeout(ctx, j); err == nil {
+        queue.Ack(ctx, j)
+        return
+    }
+    if !isRetryable(err) || attempt == maxAttempts-1 {
+        queue.MoveToDLQ(ctx, j)
+        return
+    }
+    sleepWithJitter(ctx, backoff(attempt))
+}</code></pre>
+
+    <p>Record the attempt count either in the job payload or as queue metadata. Never retry non-idempotent work without a stable key that makes the second try a no-op.</p>
+
+    <h2>Observability: you must be able to answer "what happened?"</h2>
+    <p>Every job should carry a correlation ID. Log at start, on retry, on success, on permanent failure. Emit metrics for latency, attempts, and DLQ rate. A simple pattern:</p>
+
+    <pre><code>slog.Info("job start", "id", j.ID, "type", j.Type, "attempt", attempt, "corr", j.CorrID)
+defer func() {
+    if rec := recover(); rec != nil {
+        slog.Error("job panic", "id", j.ID, "panic", rec)
+        queue.MoveToDLQ(ctx, j)
+    }
+}()</code></pre>
+
+    <p>Expose a small admin endpoint or metric that shows queue depth and oldest unacked job age — this is your canary for stuck work.</p>
+
+    <h2>Putting it together</h2>
+    <p>A production worker usually looks like:</p>
+
+    <pre><code>func main() {
+    ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+    defer cancel()
+
+    q := durable.NewQueue(...)
+    w := &amp;Worker{jobs: make(chan Job, 100), q: q}
+
+    go w.Run(ctx)
+
+    &lt;-ctx.Done()
+    w.Stop() // waits for current jobs
+}</code></pre>
+
+    <p>Combine with the layering from post 9: rate limit admission if you have a hot queue, bulkhead the worker pool, circuit-break external calls inside jobs, and always propagate deadlines.
+
+    <h2>The takeaway</h2>
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Background workers are not "goroutines you forgot about." Own the loop. Use durable queues with visibility timeouts. Make every job idempotent with a stable key. Bound concurrency. Carry context and deadlines into every step. Retry with backoff and jitter, then dead-letter on repeated failure. Log and metric everything with correlation IDs. If you can't answer "what happened to this job and why did it fail?" you don't have a worker — you have a source of future outages.</p>
+    </div>
+  </div>
+</article>
+
+<nav class="pn">
+  <a href="10-grpc-patterns.html"><div class="k">← Previous</div><h4>gRPC Patterns</h4></a>
+  <a href="../../index.html"><div class="k">The end →</div><h4>Back to all posts</h4></a>
+</nav>
+
+<footer class="foot"><div class="in">
+  <span>© 2026 SHOGOL</span>
+  <span>ADVANCED GO PATTERNS · PART 11 / 11</span>
+  <a href="../../index.html">ALL POSTS →</a>
+</div></footer>
+
+<script src="../../assets/theme.js"></script>
+</body>
+</html>
