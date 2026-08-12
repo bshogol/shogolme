@@ -20,14 +20,11 @@
       rel="stylesheet"
     />
     <script>
-      /* Theme before paint. Stored choice wins; otherwise the OS decides. */
+      /* Theme before paint. The OS decides — there is no stored preference. */
       (function () {
         try {
-          var stored = localStorage.getItem("shogol-theme");
-          var mode = stored === "light" || stored === "dark" ? stored : null;
           var theme =
-            mode ||
-            (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+            window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           var root = document.documentElement;
           root.setAttribute("data-theme", theme);
           root.style.colorScheme = theme;

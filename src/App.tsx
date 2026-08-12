@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { Route, Routes, useLocation } from "react-router";
-import { ThemeProvider } from "./lib/theme";
+import { SystemTheme } from "./lib/theme";
 import { Article } from "./pages/Article";
 import { Home } from "./pages/Home";
 import { NotFound } from "./pages/NotFound";
@@ -15,7 +15,8 @@ import "./styles/code.css";
 
 export function App() {
   return (
-    <ThemeProvider>
+    <>
+      <SystemTheme />
       <ScrollToTop />
       <a className="skip-link" href="#content">
         Skip to content
@@ -29,7 +30,7 @@ export function App() {
       {/* Web Analytics. The package (rather than the bare script tag the old
           static site used) reports client-side route changes as pageviews. */}
       <Analytics />
-    </ThemeProvider>
+    </>
   );
 }
 
