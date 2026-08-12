@@ -12,8 +12,9 @@ Design language: **dflux frontend**. Two scopes, deliberately different:
   this page" outline on the right. Colour appears only where colour is the
   message: syntax highlighting and warning callouts.
 
-Light/dark/system, toggled from the bar and persisted to `localStorage`; the
-theme is painted before first paint, so no flash.
+Theme is system-only: `prefers-color-scheme` decides, there is no toggle and no
+stored preference. It is painted before first paint, so no flash, and it follows
+the OS switching while the page is open.
 
 ## Structure
 
