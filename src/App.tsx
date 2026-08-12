@@ -6,6 +6,7 @@ import { Article } from "./pages/Article";
 import { Home } from "./pages/Home";
 import { NotFound } from "./pages/NotFound";
 import { Series } from "./pages/Series";
+import { SeriesIndex } from "./pages/SeriesIndex";
 
 import "./styles/tokens.css";
 import "./styles/base.css";
@@ -23,6 +24,7 @@ export function App() {
       </a>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/series" element={<SeriesIndex />} />
         <Route path="/series/:slug" element={<Series />} />
         <Route path="/posts/:series/:file" element={<Article />} />
         <Route path="*" element={<NotFound />} />

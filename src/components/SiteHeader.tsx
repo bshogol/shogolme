@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router";
-import { series } from "../lib/content";
+import { pad2, series } from "../lib/content";
 import { SearchPalette } from "./SearchPalette";
 
 /** Fixed 64px bar: transparent at rest, glass once the page scrolls. */
@@ -38,15 +38,13 @@ export function SiteHeader({ fullBleed = false }: { fullBleed?: boolean }) {
               </span>
               <span className="brand-word">shogol</span>
             </Link>
+            {/* One "Series" entry, not one per series: the bar was already
+                crowded at three and the list only grows. */}
             <nav className="bar-nav" aria-label="Primary">
               <NavLink to="/" end>
                 Index
               </NavLink>
-              {series.map((s) => (
-                <NavLink key={s.slug} to={`/series/${s.slug}`}>
-                  {s.title}
-                </NavLink>
-              ))}
+              <NavLink to="/series">Series</NavLink>
             </nav>
           </div>
 
@@ -77,8 +75,18 @@ export function SiteHeader({ fullBleed = false }: { fullBleed?: boolean }) {
             <Link to="/" onClick={() => setMenuOpen(false)}>
               Index
             </Link>
+            <Link to="/series" onClick={() => setMenuOpen(false)}>
+              All series
+            </Link>
+            {/* The drawer scrolls, so it can afford the full list the bar can't. */}
             {series.map((s) => (
-              <Link key={s.slug} to={`/series/${s.slug}`} onClick={() => setMenuOpen(false)}>
+              <Link
+                key={s.slug}
+                className="bar-drawer-sub"
+                to={`/series/${s.slug}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                <span className="mono">{pad2(s.order)}</span>
                 {s.title}
               </Link>
             ))}
