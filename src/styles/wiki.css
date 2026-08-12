@@ -422,6 +422,13 @@
   fill: none;
 }
 
+/* Arrowheads are filled triangles: drawn with a stroke class they come out as
+   hollow chevrons. */
+.dgm-arrow {
+  fill: var(--d-ink-muted);
+  stroke: none;
+}
+
 .dgm-ink,
 .dgm-title {
   fill: var(--d-ink-strong);

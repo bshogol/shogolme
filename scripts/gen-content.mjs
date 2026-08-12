@@ -123,7 +123,13 @@ function buildArticle(post, series) {
   // carries the panel — no chrome popping in after hydration.
   for (const pre of prose.querySelectorAll("pre")) {
     const codeEl = pre.querySelector("code") ?? pre;
-    const { html, label } = highlight(codeEl.text, post.series);
+    // An explicit data-lang wins over detection, and turns highlighting off:
+    // a syllogism laid out in a panel is a block of text, not a language, and
+    // "Code" is the wrong word on the label strip.
+    const declared = pre.getAttribute("data-lang");
+    const { html, label } = declared
+      ? { html: escapeHtml(codeEl.text), label: declared }
+      : highlight(codeEl.text, post.series);
     pre.setAttribute("data-lang", label);
     codeEl.set_content(html);
     codeEl.setAttribute("class", "hljs");
