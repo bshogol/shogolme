@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Zeno's Paradoxes — Shogol</title>
+<meta name="description" content="Calculus answered the arithmetic. Whether an infinity can be completed is still open." />
+</head>
+<body>
+
+<article class="article">
+  <div class="post-meta"><span class="date">AUG 2, 2026</span><span><b>PART 14 / 17</b></span><span>6 MIN READ</span><span>PARADOX</span></div>
+  <h1 class="post-title">Zeno's Paradoxes</h1>
+  <p class="post-dek">Calculus answered the arithmetic. Whether an infinity can be completed is still open.</p>
+
+  <div class="prose">
+    <p>Zeno of Elea was not trying to prove that motion is impossible for the fun of it. He was defending his teacher Parmenides, who had argued that reality is one, unchanging and indivisible — a claim so at odds with experience that it invited ridicule. Zeno's method was to accept the opposing view for the sake of argument and show that it leads somewhere worse.</p>
+
+    <p>This makes the paradoxes the earliest surviving examples of a technique that later became standard: assume what your opponent believes, derive an absurdity, hand it back. Aristotle credited Zeno with inventing dialectic, and whether or not that is exactly right, the arguments have outlived the position they were defending by two and a half thousand years.</p>
+
+    <h2>The dichotomy</h2>
+
+    <p>To walk to the end of the room you must first reach the halfway point. Before that, the quarter point. Before that, the eighth. Since there is no first interval to complete — every candidate has a smaller one before it — you cannot even begin. And even setting the beginning aside, the journey contains infinitely many sub-journeys, and you cannot complete infinitely many things in a finite time.</p>
+
+    <figure class="diagram">
+      <svg viewBox="0 0 720 260" role="img" aria-label="A line divided repeatedly into halves, the intervals shrinking toward the endpoint, with the sum of the series equalling one">
+        <text class="dgm-title" x="360" y="26" text-anchor="middle" font-size="15">Infinitely many intervals, finite total</text>
+
+        <path class="dgm-line draw" pathLength="1" d="M60 120 H660" />
+        <text class="dgm-muted" x="60" y="150" font-size="11.5" font-family="monospace">START</text>
+        <text class="dgm-muted" x="660" y="150" text-anchor="end" font-size="11.5" font-family="monospace">END</text>
+
+        <g class="pop d2">
+          <path class="dgm-accent-stroke" d="M60 104 V136" stroke-width="1.5"/>
+          <path class="dgm-accent-stroke" d="M360 104 V136" stroke-width="1.5"/>
+          <text class="dgm-ink" x="210" y="96" text-anchor="middle" font-size="12">1/2</text>
+        </g>
+        <g class="pop d3">
+          <path class="dgm-accent-stroke" d="M510 104 V136" stroke-width="1.5"/>
+          <text class="dgm-ink" x="435" y="96" text-anchor="middle" font-size="12">1/4</text>
+        </g>
+        <g class="pop d4">
+          <path class="dgm-accent-stroke" d="M585 106 V134" stroke-width="1.5"/>
+          <text class="dgm-ink" x="548" y="96" text-anchor="middle" font-size="11.5">1/8</text>
+        </g>
+        <g class="pop d5">
+          <path class="dgm-accent-stroke" d="M622 108 V132" stroke-width="1.5"/>
+          <path class="dgm-accent-stroke" d="M641 110 V130" stroke-width="1.5"/>
+          <text class="dgm-muted" x="646" y="96" text-anchor="middle" font-size="11.5">…</text>
+        </g>
+
+        <text class="dgm-muted" x="360" y="196" text-anchor="middle" font-size="12.5">1/2 + 1/4 + 1/8 + 1/16 + … = 1</text>
+        <text class="dgm-muted" x="360" y="224" text-anchor="middle" font-size="11.5">The arithmetic converges. The question Zeno asked was whether the runner</text>
+        <text class="dgm-muted" x="360" y="242" text-anchor="middle" font-size="11.5">can complete an endless list of tasks — and that is not an arithmetic question.</text>
+      </svg>
+      <figcaption>The sum was settled in the seventeenth century; the metaphysics was not settled with it</figcaption>
+    </figure>
+
+    <p>The <strong>Achilles</strong> is the same argument dramatised. Achilles races a tortoise that starts ahead. By the time he reaches the tortoise's starting point, it has moved a little; by the time he covers that, it has moved again. There is always a gap, so the fastest runner never catches the slowest — a conclusion that is not merely surprising but flatly contradicted by every race ever run.</p>
+
+    <p>The <strong>arrow</strong> attacks from the other direction. At any given instant, a flying arrow occupies a space exactly its own size; in that instant it is not moving, since motion takes time. But the flight is composed entirely of such instants, and a sum of motionless states cannot be motion.</p>
+
+    <h2>What mathematics settled</h2>
+
+    <p>The standard reply is that Zeno did not know about convergent series: the infinite sum of halves is one, and the corresponding times sum to a finite time. The runner covers infinitely many intervals in a finite duration because the intervals shrink at the same rate as the times.</p>
+
+    <p>That reply is correct and it settles the arithmetic completely. It does not settle everything Zeno asked, and the honest history is that it took until the nineteenth century — Cauchy and Weierstrass giving limits a rigorous definition without appealing to infinitesimals — before the mathematics was in good enough shape to make even the arithmetic answer secure. For two millennia the paradoxes stood as a live problem, not a solved curiosity.</p>
+
+    <p>The arrow received a different answer. Russell's "at-at" theory says motion just <em>is</em> being at different places at different times, and nothing more: there is no additional ingredient present at an instant that constitutes moving. Once you accept that, the arrow's instantaneous rest is no longer paradoxical, because being at rest at an instant was never the opposite of moving over an interval. Whether this solves the puzzle or defines it away is a matter on which reasonable people still disagree — it does concede Zeno's premise that nothing is happening at the instant.</p>
+
+    <h2>What is still open</h2>
+
+    <p>The residue is the question of <em>supertasks</em>: whether infinitely many discrete actions can be completed in a finite time. The convergence of a series shows that infinitely many intervals fit inside a finite one. It does not obviously show that infinitely many <em>acts</em> can be finished, because a completed infinity of acts has no last member, and "finished" normally means there was a last one.</p>
+
+    <p>James Thomson's lamp is the sharpest version. A lamp is switched on at time zero, off at half a minute, on at three quarters, and so on, each switch at half the remaining interval. At one minute, all infinitely many switches have occurred. Is the lamp on or off? Nothing in the sequence determines an answer: for every "on" there is a later "off," and vice versa, and the state at the limit is simply not defined by the sequence that led to it. That looks less like a limitation of our knowledge than an incoherence in the setup — which is what Thomson concluded, and which would mean supertasks are impossible, which would put the original paradoxes back in play.</p>
+
+    <p>Physics offers a possible exit. If space and time are discrete at some fundamental scale, the halving stops at a smallest interval and the infinite subdivision never actually occurs — Zeno's premise is false, not merely awkward. Nobody knows whether this is the case. The interesting fact for a philosophical series is that a question first raised to defend a claim about the unity of being is still, in one form, an open question in physics.</p>
+
+    <div class="callout">
+      <div class="k">What Zeno actually established</div>
+      <p>Not that motion is impossible — nobody, including Zeno, believed the conclusion. What the arguments establish is that our ordinary concepts of continuity, infinity and completion do not fit together as smoothly as they appear to. Every attempted resolution has had to give up something: infinitesimals, or the reality of instantaneous motion, or the possibility of completing an infinite sequence.</p>
+    </div>
+
+    <h2>Why this shape recurs</h2>
+
+    <p>The general form of the argument is more useful than any of its instances: take a process that plainly works, describe it as an infinite sequence of prior conditions, and observe that the description makes it impossible. When that happens, one of the two is wrong — and it is usually the description.</p>
+
+    <p>That pattern shows up whenever an analysis decomposes something into steps that each require a prior step. A specification whose every rule requires another rule to say how it applies is Zeno's dichotomy in normative dress, and it has the same structure as the regress in the previous part: the demand for a prior condition, applied without limit, to something that manifestly happens. Zeno's contribution was to notice that the demand can be perfectly reasonable at every step and still produce an impossible conclusion, and to leave it to everyone after him to work out which step to refuse.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Convergent series answer the arithmetic: infinitely many shrinking intervals sum to a finite distance and a finite time. What remains open is whether an infinity of discrete acts can be <em>completed</em> — and the paradoxes' real lesson is the pattern: when a decomposition proves that something plainly happening cannot happen, the decomposition is the thing to inspect.</p>
+    </div>
+  </div>
+</article>
+
+</body>
+</html>

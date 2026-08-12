@@ -337,6 +337,78 @@
       "title": "Eudaimonia Is Not Happiness",
       "dek": "A life assessable only as a whole, and possibly ruinable after your death. The opposite of a wellbeing metric.",
       "file": "09-eudaimonia"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 10,
+      "date": "2026-07-21",
+      "category": "Stoicism",
+      "title": "What Modern Stoicism Deletes",
+      "dek": "The dichotomy of control rests on a rational, deterministic cosmos. Strip that out and you get productivity tips in a toga.",
+      "file": "10-what-modern-stoicism-deletes"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 11,
+      "date": "2026-07-24",
+      "category": "Stoicism",
+      "title": "Amor Fati & the View From Above",
+      "dek": "Marcus Aurelius' two exercises — and why they are training, not belief.",
+      "file": "11-amor-fati"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 12,
+      "date": "2026-07-27",
+      "category": "Stoicism",
+      "title": "Stoicism vs Epicureanism",
+      "dek": "One goal, two opposite routes — and a school whose name now means the reverse of what it taught.",
+      "file": "12-stoicism-vs-epicureanism"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 13,
+      "date": "2026-07-30",
+      "category": "Knowledge",
+      "title": "Skepticism & the Regress",
+      "dek": "Every justification needs a justification. The regress was never solved — only managed, three ways.",
+      "file": "13-skepticism-and-the-regress"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 14,
+      "date": "2026-08-02",
+      "category": "Paradox",
+      "title": "Zeno's Paradoxes",
+      "dek": "Calculus answered the arithmetic. Whether an infinity can be completed is still open.",
+      "file": "14-zenos-paradoxes"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 15,
+      "date": "2026-08-05",
+      "category": "Justice",
+      "title": "What Is Justice?",
+      "dek": "The Ring of Gyges and the veil of ignorance are the same move, made twenty-four centuries apart.",
+      "file": "15-what-is-justice"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 16,
+      "date": "2026-08-08",
+      "category": "Free Will",
+      "title": "Free Will & Compatibilism",
+      "dek": "The Stoics were determinists who held you responsible anyway. That is not a dodge.",
+      "file": "16-free-will-and-compatibilism"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 17,
+      "date": "2026-08-11",
+      "category": "Mind",
+      "title": "The Chinese Room & the Hard Problem",
+      "dek": "Two objections that get conflated: one about understanding, one about experience. The ancient question, asked of a machine.",
+      "file": "17-the-chinese-room"
     }
   ]
 }
