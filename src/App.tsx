@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { Route, Routes, useLocation } from "react-router";
 import { ThemeProvider } from "./lib/theme";
 import { Article } from "./pages/Article";
@@ -25,6 +26,9 @@ export function App() {
         <Route path="/posts/:series/:file" element={<Article />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      {/* Web Analytics. The package (rather than the bare script tag the old
+          static site used) reports client-side route changes as pageviews. */}
+      <Analytics />
     </ThemeProvider>
   );
 }
