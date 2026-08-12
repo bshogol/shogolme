@@ -25,10 +25,15 @@ scripts/gen-content.mjs       Build step: lifts each .prose block out of the HTM
                               highlights code, and writes src/content/generated/ (gitignored).
 scripts/prerender.mjs         Build step: renders all 30 routes to static HTML with real <title>,
                               meta description and canonical link.
-src/pages/                    Home · Series · Article · NotFound
-src/components/               SiteHeader (64px bar + ⌘K palette) · SiteFooter · ArticleBody
+src/pages/                    Home · SeriesIndex (/series) · Series (/series/:slug) · Article · NotFound
+src/components/               SiteHeader (64px bar + ⌘K palette) · SiteFooter · SeriesDirectory · ArticleBody
 src/styles/                   tokens · base (shell) · home (marketing) · wiki (docs) · code
 ```
+
+The home page is a **numbered directory** of series, each previewing its first
+six parts; `/series` is the same directory with every part listed. Neither the
+top bar nor the home page grows a row per article as series accumulate — the
+bar carries one `Series` entry, and the directory caps each preview.
 
 The article HTML in `posts/` is an input, not a served page: the generator reads
 the `.prose` block and the app supplies all chrome. The old per-post `<head>`,

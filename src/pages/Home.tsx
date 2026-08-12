@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { SearchIcon, SiteHeader } from "../components/SiteHeader";
+import { SeriesDirectory } from "../components/SeriesDirectory";
 import { SiteFooter } from "../components/SiteFooter";
-import { articlePath, articles, formatDate, pad2, partsOf, series, seriesPath, totals } from "../lib/content";
+import { articlePath, articles, formatDate, pad2, series, totals } from "../lib/content";
 import { search } from "../lib/search";
 import { usePageMeta } from "../lib/meta";
 
@@ -102,38 +103,15 @@ export function Home() {
         </section>
 
         <section className="index">
-          <h2 className="section-head mono">The index</h2>
-          {series.map((s) => {
-            const parts = partsOf(s.slug);
-            return (
-              <section className="portal" key={s.slug}>
-                <header className="portal-head">
-                  <div>
-                    <h3 className="portal-title">
-                      <Link to={seriesPath(s.slug)}>{s.title}</Link>
-                      <span className="mono tag">{s.tag}</span>
-                    </h3>
-                    <p className="portal-blurb">{s.blurb}</p>
-                  </div>
-                  <Link className="portal-link mono" to={seriesPath(s.slug)}>
-                    {parts.length} parts →
-                  </Link>
-                </header>
-                <ol className="portal-list">
-                  {parts.map((part) => (
-                    <li key={part.key}>
-                      <Link to={articlePath(part)}>
-                        <span className="mono portal-num">{pad2(part.part)}</span>
-                        <span className="portal-row-title">{part.title}</span>
-                        <span className="portal-row-dek">{part.dek}</span>
-                        <span className="mono portal-row-cat">{part.category}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            );
-          })}
+          <div className="section-bar">
+            <h2 className="section-head mono">The directory</h2>
+            <Link className="mono section-link" to="/series">
+              All series →
+            </Link>
+          </div>
+          {/* Capped at six parts each: the home page has to stay one screen of
+              scanning however many series accumulate. */}
+          <SeriesDirectory series={series} preview={6} />
         </section>
       </main>
       <SiteFooter />
