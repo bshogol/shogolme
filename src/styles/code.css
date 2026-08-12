@@ -1,0 +1,185 @@
+/* Code panels + the one full colour palette in the docs scope. Colour here
+   encodes token type — the same reason warning callouts keep a hue. */
+
+.code-panel {
+  margin: 24px 0;
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  background: var(--d-code-bg);
+  overflow: hidden;
+}
+
+/* Always present: a copy button that appears on hover is one most people
+   never find. */
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 36px;
+  padding: 0 8px 0 14px;
+  background: var(--d-code-head);
+  border-bottom: 1px solid var(--d-border);
+}
+
+.code-lang {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--d-ink-muted);
+}
+
+.code-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  border-radius: 7px;
+  color: var(--d-ink-muted);
+  transition: background var(--dur-fast) var(--ease-beat), color var(--dur-fast) var(--ease-beat);
+}
+
+.code-copy:hover {
+  background: var(--d-subtle);
+  color: var(--d-ink-strong);
+}
+
+.code-copy.is-copied {
+  color: var(--ok, #16a34a);
+}
+
+.code-copy.is-copied svg {
+  display: none;
+}
+
+.code-copy.is-copied::after {
+  content: "✓";
+  font-size: 14px;
+}
+
+.code-panel pre {
+  margin: 0;
+  padding: 12px 16px;
+  overflow-x: auto;
+  background: none;
+  border: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--d-border-strong) transparent;
+}
+
+.code-panel code,
+.prose pre code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 24px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--d-ink);
+  white-space: pre;
+}
+
+/* ---- syntax roles ------------------------------------------------------ */
+/* Eight roles every language maps onto, so a Go snippet and a YAML snippet
+   read as one system. */
+
+:root {
+  --syn-keyword: #cf222e;
+  --syn-string: #0a3069;
+  --syn-function: #8250df;
+  --syn-number: #0550ae;
+  --syn-attr: #953800;
+  --syn-comment: #6e7781;
+  --syn-meta: #0550ae;
+  --syn-added: #116329;
+  --syn-removed: #a40e26;
+}
+
+[data-theme="dark"] {
+  --syn-keyword: #f97583;
+  --syn-string: #9ecbff;
+  --syn-function: #b392f0;
+  --syn-number: #79b8ff;
+  --syn-attr: #ffab70;
+  --syn-comment: #7d8590;
+  --syn-meta: #79b8ff;
+  --syn-added: #56d364;
+  --syn-removed: #f85149;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-operator,
+.hljs-doctag {
+  color: var(--syn-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-symbol,
+.hljs-template-tag {
+  color: var(--syn-string);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-title.class_,
+.hljs-section,
+.hljs-name {
+  color: var(--syn-function);
+}
+
+.hljs-number,
+.hljs-type,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-selector-id {
+  color: var(--syn-number);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-property,
+.hljs-params,
+.hljs-selector-attr {
+  color: var(--syn-attr);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--syn-comment);
+  font-style: italic;
+}
+
+.hljs-meta,
+.hljs-meta .hljs-keyword,
+.hljs-subst {
+  color: var(--syn-meta);
+}
+
+.hljs-punctuation {
+  color: var(--d-ink-muted);
+}
+
+.hljs-addition {
+  color: var(--syn-added);
+  background: color-mix(in srgb, var(--syn-added) 12%, transparent);
+}
+
+.hljs-deletion {
+  color: var(--syn-removed);
+  background: color-mix(in srgb, var(--syn-removed) 12%, transparent);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 500;
+}

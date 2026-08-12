@@ -1,59 +1,46 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Shogol — Field Notes on Software</title>
-<meta name="description" content="Long-form series on how things actually work — from large language models and the systems that serve them, to the Go patterns behind production code." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='monospace' font-weight='700' fill='%232f6bff'>S</text></svg>" />
-<link rel="stylesheet" href="assets/kinetic.css" />
-<script>(function(){try{var t=localStorage.getItem('shogol-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-</head>
-<body>
-
-<div class="marq"><div class="track">
-  <span>Writing · Building · Shipping</span><span>·</span><span>Field Notes on Software</span><span>·</span><span>AI · Go · Systems</span><span>·</span>
-  <span>Writing · Building · Shipping</span><span>·</span><span>Field Notes on Software</span><span>·</span><span>AI · Go · Systems</span><span>·</span>
-</div></div>
-
-<header class="hdr">
-  <div class="brand">shogol<b>.</b></div>
-  <nav>
-    <a class="lk" href="#feed">Latest</a>
-    <a class="lk" href="https://github.com/bshogol" target="_blank" rel="noopener">GitHub</a>
-    <button class="toggle" aria-label="Toggle dark mode">
-      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
-      <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
-    </button>
-  </nav>
-</header>
-
-<section class="masthead">
-  <div class="meta">
-    <span>THE SHOGOL JOURNAL</span>
-    <span>WRITTEN IN THE OPEN · 2026</span>
-    <span>AI · GO · SYSTEMS</span>
-  </div>
-  <h1 class="display">Field<span class="out">Notes</span><br>On <span class="fill">Software.</span></h1>
-  <p class="lede">Long-form series on how things actually work — from large language models and the engines that serve them, to the Go patterns behind production code. Read the timeline below, or pick a series.</p>
-</section>
-
-<div class="filters" id="chips"><!-- filter chips injected by site.js --></div>
-<div id="series-cta"></div>
-
-<section class="plist" id="latest">
-  <h2 class="sec">// all posts — newest first</h2>
-  <div id="feed"><!-- timeline injected by site.js --></div>
-</section>
-
-<footer class="foot"><div class="in">
-  <span>© 2026 SHOGOL</span>
-  <span>FIELD NOTES ON SOFTWARE</span>
-  <span>BUILT IN THE OPEN</span>
-</div></footer>
-
-<script src="assets/posts.js"></script>
-<script src="assets/site.js"></script>
-<script src="assets/theme.js"></script>
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Shogol — Field notes on software</title>
+    <meta
+      name="description"
+      content="A working wiki of long-form series on how things actually work — from large language models and the engines that serve them, to the Go patterns behind production code."
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23000'/><text x='50' y='50' dy='.35em' text-anchor='middle' font-size='58' font-family='monospace' font-weight='600' fill='%23fff'>S</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      /* Theme before paint. Stored choice wins; otherwise the OS decides. */
+      (function () {
+        try {
+          var stored = localStorage.getItem("shogol-theme");
+          var mode = stored === "light" || stored === "dark" ? stored : null;
+          var theme =
+            mode ||
+            (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          var root = document.documentElement;
+          root.setAttribute("data-theme", theme);
+          root.style.colorScheme = theme;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", theme === "dark" ? "#000000" : "#ffffff");
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

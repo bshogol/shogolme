@@ -1,0 +1,102 @@
+/* =========================================================================
+   Tokens — dflux frontend design language.
+
+   Two scopes live here. The site shell (home, series, 404) is the *marketing*
+   scope: pure grounds, blue as a pointer. The article pages are the *docs*
+   scope: one neutral grey ramp, no brand hue at all, prefixed --d-* so a
+   sub-tree palette can never hand a shared component the wrong value shape.
+   ========================================================================= */
+
+:root {
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- marketing scope · light ---------------------------------------- */
+  --bg: #ffffff;
+  --panel: #fafafa;
+  --panel-2: #f4f4f5;
+  --panel-3: #e4e4e7;
+  --fg: #09090b;
+  --text-2: #52525b;
+  --text-3: #71717a;
+  --text-4: #a1a1aa;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.12);
+  --border-hover: rgba(0, 0, 0, 0.18);
+  --blue: #2563eb;
+  --blue-hi: #3b82f6;
+  --blue-soft: rgba(37, 99, 235, 0.1);
+  --blue-glow: rgba(37, 99, 235, 0.28);
+  --header-bg: rgba(255, 255, 255, 0.72);
+  --scrim: rgba(9, 9, 11, 0.32);
+  --lift: 0 24px 80px -32px rgba(0, 0, 0, 0.28), 0 8px 24px -12px rgba(0, 0, 0, 0.1);
+
+  /* ---- docs / wiki scope · light --------------------------------------- */
+  --d-surface: #ffffff;
+  --d-muted: #fafaf9;
+  --d-subtle: #f3f3f1;
+  --d-border: #e5e5e2;
+  --d-border-strong: #a8a8a4;
+  --d-ink: #0a0a0a;
+  --d-ink-strong: #0a0a0a;
+  --d-ink-muted: #6c7078;
+  --d-ink-subtle: #84888f;
+  --d-nav-active: #f0f0ee;
+  --d-nav-active-fg: #0a0a0a;
+  --d-code-bg: #fafaf9;
+  --d-code-head: #f3f3f1;
+  --d-warn: #aa7614;
+  --d-danger: #c43c3c;
+
+  /* ---- layout & motion ------------------------------------------------- */
+  --container: 1120px;
+  --header-h: 64px;
+  --gutter: 1.5rem;
+  --radius-card: 16px;
+  --prose: 42rem;
+  --col: 56rem;
+  --rail: 17rem;
+  --outline: 13.5rem;
+  --ease-beat: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 0.15s;
+  --dur-base: 0.24s;
+  --dur-slow: 0.4s;
+}
+
+[data-theme="dark"] {
+  --bg: #000000;
+  --panel: #0a0a0a;
+  --panel-2: #111111;
+  --panel-3: #161616;
+  --fg: #ededed;
+  --text-2: #a1a1aa;
+  --text-3: #71717a;
+  --text-4: #52525b;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.18);
+  --blue: #3b82f6;
+  --blue-hi: #60a5fa;
+  --blue-soft: rgba(59, 130, 246, 0.12);
+  --blue-glow: rgba(59, 130, 246, 0.35);
+  --header-bg: rgba(0, 0, 0, 0.72);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --lift: 0 40px 120px -48px rgba(0, 0, 0, 0.9), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+
+  --d-surface: #0a0a0a;
+  --d-muted: #121212;
+  --d-subtle: #1a1a1a;
+  --d-border: #262629;
+  --d-border-strong: #404146;
+  /* Cool off-white: pure #fff on near-black glares at body size. */
+  --d-ink: #d6dae2;
+  --d-ink-strong: #ffffff;
+  --d-ink-muted: #8a8f98;
+  --d-ink-subtle: #6e737c;
+  --d-nav-active: #212121;
+  --d-nav-active-fg: #ffffff;
+  --d-code-bg: #121212;
+  --d-code-head: #18181a;
+  --d-warn: #e0b05c;
+  --d-danger: #e87a7a;
+}
