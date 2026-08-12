@@ -1,0 +1,665 @@
+/* =========================================================================
+   The article pages — the docs scope. One neutral grey ramp all the way down:
+   surfaces, type, borders and the rail's you-are-here row are steps on it, and
+   colour appears only where colour is the message (warnings, syntax).
+   ========================================================================= */
+
+.wiki {
+  background: var(--d-surface);
+  color: var(--d-ink);
+  min-height: 100vh;
+  /* The shared bar and footer are built from marketing classes. This is the
+     one place those tokens are redirected onto the docs ramp. */
+  --bg: var(--d-surface);
+  --panel: var(--d-muted);
+  --panel-2: var(--d-subtle);
+  --panel-3: var(--d-subtle);
+  --fg: var(--d-ink-strong);
+  --text-2: var(--d-ink);
+  --text-3: var(--d-ink-muted);
+  --text-4: var(--d-ink-subtle);
+  --border: var(--d-border);
+  --border-strong: var(--d-border);
+  --border-hover: var(--d-border-strong);
+}
+
+.wiki .bar-in {
+  padding-inline: 24px;
+}
+
+/* ---- frame ------------------------------------------------------------- */
+
+.wiki-frame {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr) var(--outline);
+  /* flex-start would shrink-wrap the columns and strand the sticky children. */
+  align-items: stretch;
+  padding-top: var(--header-h);
+}
+
+.wiki-rail,
+.wiki-outline {
+  position: sticky;
+  /* inset-block before top: the shorthand resets both edges and silently
+     kills the offset if it comes second. */
+  inset-block: auto;
+  top: var(--header-h);
+  height: calc(100dvh - var(--header-h));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--d-border) transparent;
+}
+
+.wiki-rail {
+  border-right: 1px solid var(--d-border);
+}
+
+.rail-in {
+  padding: 24px 12px 40px 24px;
+}
+
+.rail-series {
+  display: grid;
+  gap: 4px;
+  padding: 10px 8px 14px;
+}
+
+.rail-tag {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--d-ink-subtle);
+}
+
+.rail-series-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--d-ink-strong);
+  letter-spacing: -0.02em;
+}
+
+.rail-count {
+  font-size: 11px;
+  color: var(--d-ink-subtle);
+}
+
+.rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  border-top: 1px solid var(--d-border);
+  padding-top: 10px;
+}
+
+.rail-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--d-ink-muted);
+  transition: background var(--dur-fast) var(--ease-beat), color var(--dur-fast) var(--ease-beat);
+}
+
+.rail-row:hover {
+  color: var(--d-ink-strong);
+  background: var(--d-muted);
+}
+
+/* The one filled row in the whole page: it is what says "you are here". */
+.rail-row.is-current {
+  background: var(--d-nav-active);
+  color: var(--d-nav-active-fg);
+}
+
+.rail-num {
+  font-size: 11px;
+  color: var(--d-ink-subtle);
+}
+
+.rail-row.is-current .rail-num {
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* ---- article column ---------------------------------------------------- */
+
+.wiki-main {
+  min-width: 0;
+}
+
+.wiki-col {
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: 32px 40px 0;
+}
+
+.art-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--d-ink-subtle);
+}
+
+.art-crumbs a:hover {
+  color: var(--d-ink-strong);
+}
+
+.rail-toggle {
+  display: none;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--d-ink-muted);
+  border: 1px solid var(--d-border);
+  border-radius: 9999px;
+  padding: 5px 12px;
+}
+
+.art-head {
+  padding: 24px 0 28px;
+  border-bottom: 1px solid var(--d-border);
+}
+
+.art-head h1 {
+  font-size: 48px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--d-ink-strong);
+}
+
+.art-lede {
+  max-width: var(--prose);
+  margin-top: 14px;
+  font-size: 16px;
+  line-height: 26px;
+  color: var(--d-ink-muted);
+}
+
+.art-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--d-ink-subtle);
+}
+
+/* ---- prose: two measures ----------------------------------------------- */
+/* Running text keeps a 42rem line; headings, code, figures and tables span
+   the full 56rem column. One uniform wide measure reads washed out. */
+
+.prose {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--d-ink);
+  padding: 32px 0 8px;
+}
+
+.prose > * {
+  max-width: var(--prose);
+}
+
+.prose > h2,
+.prose > h3,
+.prose > h4,
+.prose > figure,
+.prose > table,
+.prose > .code-panel,
+.prose > .callout,
+.prose > pre {
+  max-width: none;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote {
+  margin-bottom: 16px;
+}
+
+.prose h2,
+.prose h3,
+.prose h4 {
+  color: var(--d-ink-strong);
+  font-weight: 500;
+  scroll-margin-top: 5.5rem;
+}
+
+.prose h2 {
+  font-size: 30px;
+  line-height: 36px;
+  letter-spacing: -0.02em;
+  margin: 48px 0 16px;
+}
+
+.prose h3 {
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: -0.015em;
+  margin: 32px 0 12px;
+}
+
+.prose h4 {
+  font-size: 15px;
+  line-height: 24px;
+  margin: 26px 0 8px;
+}
+
+.prose strong {
+  color: var(--d-ink-strong);
+  font-weight: 500;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 20px;
+}
+
+.prose li {
+  margin-bottom: 4px;
+}
+
+.prose li::marker {
+  color: var(--d-ink-subtle);
+}
+
+/* Links are ink with a soft underline — never a coloured word in a grey
+   paragraph. Scoped to running text so chrome doesn't get underlined. */
+.prose :is(p, li, td, th, blockquote, dd) a {
+  color: var(--d-ink-strong);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--d-ink) 32%, transparent);
+  transition: text-decoration-color var(--dur-fast) var(--ease-beat);
+}
+
+.prose :is(p, li, td, th, blockquote, dd) a:hover {
+  text-decoration-color: color-mix(in srgb, var(--d-ink) 90%, transparent);
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--d-border-strong);
+  padding-left: 18px;
+  color: var(--d-ink-muted);
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--d-border);
+  margin: 40px 0;
+}
+
+.prose :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  font-weight: 400;
+  background: var(--d-subtle);
+  border: 1px solid var(--d-border);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.92em;
+  border: 1px solid var(--d-border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.prose th,
+.prose td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--d-border);
+}
+
+.prose th {
+  color: var(--d-ink-muted);
+  font-weight: 500;
+}
+
+/* ---- callouts ---------------------------------------------------------- */
+/* Neutral asides. Only warning and danger earn a hue, because there the
+   colour is the message. */
+
+.prose .callout {
+  margin: 24px 0;
+  padding: 14px 18px;
+  border: 1px solid var(--d-border);
+  border-left: 3px solid color-mix(in srgb, var(--d-ink) 28%, transparent);
+  border-radius: 0 10px 10px 0;
+  background: var(--d-muted);
+}
+
+.callout-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--d-ink-muted);
+  margin-bottom: 6px;
+}
+
+.prose .callout p {
+  margin: 0;
+  color: var(--d-ink);
+}
+
+/* ---- diagrams ---------------------------------------------------------- */
+/* Monochrome by rule: contrast steps on the ink ramp, never a brand hue. */
+
+.prose .diagram {
+  margin: 32px 0;
+  padding: 24px;
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  background: var(--d-muted);
+  overflow: hidden;
+}
+
+.diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.diagram figcaption {
+  margin-top: 14px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--d-ink-subtle);
+}
+
+.dgm-box {
+  fill: var(--d-surface);
+  stroke: var(--d-border-strong);
+  stroke-width: 1.5;
+}
+
+.dgm-box-accent {
+  fill: var(--d-subtle);
+  stroke: var(--d-ink-muted);
+  stroke-width: 1.5;
+}
+
+.dgm-line {
+  stroke: var(--d-border-strong);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.dgm-flow {
+  stroke: var(--d-ink-muted);
+  stroke-width: 2;
+  fill: none;
+}
+
+.dgm-accent-stroke {
+  stroke: var(--d-ink);
+  fill: none;
+}
+
+.dgm-ink,
+.dgm-title {
+  fill: var(--d-ink-strong);
+}
+
+.dgm-accent {
+  fill: var(--d-ink-strong);
+}
+
+.dgm-muted,
+.dgm-label {
+  fill: var(--d-ink-muted);
+}
+
+.dgm-title {
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+
+.dgm-label {
+  font-family: var(--font-mono);
+}
+
+.diagram svg text {
+  font-family: var(--font-sans);
+}
+
+/* Armed by the component before paint, released on intersection — the server
+   markup is visible, so no-JS and pre-hydration paints see the real diagram. */
+.diagram.is-armed .draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.diagram.is-armed.is-in .draw {
+  animation: draw 1.1s var(--ease-beat) forwards;
+}
+
+.diagram.is-armed .pop {
+  opacity: 0;
+}
+
+.diagram.is-armed.is-in .pop {
+  animation: pop 0.5s var(--ease-beat) both;
+}
+
+.diagram .draw.d2,
+.diagram .pop.d2 {
+  animation-delay: 0.22s;
+}
+
+.diagram .draw.d3,
+.diagram .pop.d3 {
+  animation-delay: 0.42s;
+}
+
+.diagram .draw.d4,
+.diagram .pop.d4 {
+  animation-delay: 0.62s;
+}
+
+.diagram .pop.d5 {
+  animation-delay: 0.8s;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagram .draw {
+    stroke-dashoffset: 0 !important;
+  }
+  .diagram .pop {
+    opacity: 1 !important;
+  }
+}
+
+/* ---- prev / next ------------------------------------------------------- */
+
+.art-pn {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 48px 0 72px;
+  padding-top: 32px;
+  border-top: 1px solid var(--d-border);
+}
+
+.pn-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  transition: border-color var(--dur-base) var(--ease-beat);
+}
+
+.pn-card:hover {
+  border-color: var(--d-border-strong);
+}
+
+.pn-card--next {
+  text-align: right;
+}
+
+.pn-card--empty {
+  border-style: dashed;
+  opacity: 0.4;
+}
+
+.pn-k {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--d-ink-subtle);
+}
+
+.pn-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--d-ink-strong);
+  letter-spacing: -0.02em;
+}
+
+/* ---- outline ----------------------------------------------------------- */
+/* Plain text, no pills: a filled row already means "this page" in the rail. */
+
+.outline-in {
+  padding: 32px 24px 40px 16px;
+}
+
+.outline-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--d-ink-subtle);
+  margin-bottom: 10px;
+}
+
+.outline-row {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 5px 0;
+  color: var(--d-ink-subtle);
+  transition: color 100ms var(--ease-beat);
+}
+
+.outline-row:hover,
+.outline-row.is-active {
+  color: var(--d-ink-strong);
+}
+
+.outline-row.lvl-3 {
+  padding-left: 12px;
+}
+
+.outline-row.lvl-4 {
+  padding-left: 24px;
+}
+
+/* ---- responsive -------------------------------------------------------- */
+
+@media (max-width: 1280px) {
+  .wiki-frame {
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+  }
+  .wiki-outline {
+    display: none;
+  }
+}
+
+@media (max-width: 960px) {
+  .wiki-frame {
+    grid-template-columns: 1fr;
+  }
+  .wiki-rail {
+    position: fixed;
+    inset-block: var(--header-h) 0;
+    left: 0;
+    z-index: 45;
+    width: min(320px, 86vw);
+    height: auto;
+    background: var(--d-surface);
+    transform: translateX(-100%);
+    transition: transform var(--dur-base) var(--ease-beat);
+  }
+  .wiki-rail.is-open {
+    transform: none;
+  }
+  .rail-scrim {
+    position: fixed;
+    inset: var(--header-h) 0 0 0;
+    z-index: 44;
+    background: var(--scrim);
+  }
+  .rail-toggle {
+    display: inline-block;
+  }
+  .wiki-col {
+    padding: 24px 20px 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .art-head h1 {
+    font-size: 34px;
+  }
+  /* The series name wraps the crumb row onto three lines and the drawer names
+     it anyway. */
+  .art-crumbs a:nth-of-type(2),
+  .art-crumbs span[aria-hidden="true"]:nth-of-type(2) {
+    display: none;
+  }
+  .art-crumbs {
+    white-space: nowrap;
+  }
+  .art-pn {
+    grid-template-columns: 1fr;
+  }
+  .pn-card--next {
+    text-align: left;
+  }
+  .prose .diagram {
+    padding: 16px;
+  }
+}

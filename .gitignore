@@ -2,3 +2,8 @@
 *.log
 .vercel
 Thumbs.db
+node_modules
+dist
+dist-ssr
+tsconfig.tsbuildinfo
+src/content/generated

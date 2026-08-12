@@ -1,78 +1,78 @@
 # shogol.me
 
-The Shogol blog — a pure static site, no build step, no backend.
-Theme: **Kinetic** (light + dark). Multi-series: the homepage is one date-sorted
-timeline of every post, with chips to filter to a single series.
+The Shogol wiki — long-form series presented as reference articles rather than a
+blog feed. React + TypeScript on Vite, prerendered to static HTML at build time.
+
+Design language: **dflux frontend**. Two scopes, deliberately different:
+
+- **Site shell** (home, series, 404) — marketing scope: pure white/black ground,
+  hairline rules, blue only as a pointer (eyebrow dot, focus rings, hover ink).
+- **Article pages** — docs scope: one neutral grey ramp all the way down, no
+  brand hue at all. Sticky series rail on the left, article in the middle, "on
+  this page" outline on the right. Colour appears only where colour is the
+  message: syntax highlighting and warning callouts.
+
+Light/dark/system, toggled from the bar and persisted to `localStorage`; the
+theme is painted before first paint, so no flash.
 
 ## Structure
 
 ```
-index.html              homepage: site masthead + series filter chips + date-sorted timeline
-series.html             ONE dynamic series page — reads ?s=<series-slug> from the manifest
-assets/
-  kinetic.css           the whole theme (light + dark via [data-theme])
-  posts.js              THE MANIFEST — every series + every post (date, title, url). Source of truth.
-  site.js               renders the homepage feed + the series page from the manifest
-  theme.js              dark/light toggle + scroll-reveal + diagram draw-on
-posts/
-  <series-slug>/
-    NN-slug.html        one self-contained page per post
+posts/<series>/NN-slug.html   THE CONTENT. Hand-written article HTML — still the source of truth.
+src/content/registry.json     THE MANIFEST. Every series + every post (date, part, category, title, dek).
+scripts/gen-content.mjs       Build step: lifts each .prose block out of the HTML, ids the headings,
+                              highlights code, and writes src/content/generated/ (gitignored).
+scripts/prerender.mjs         Build step: renders all 30 routes to static HTML with real <title>,
+                              meta description and canonical link.
+src/pages/                    Home · Series · Article · NotFound
+src/components/               SiteHeader (64px bar + ⌘K palette) · SiteFooter · ArticleBody
+src/styles/                   tokens · base (shell) · home (marketing) · wiki (docs) · code
 ```
 
-Current series: `tokens-to-agents` (*From Tokens to Agents*, 15 parts) and
-`advanced-go-patterns` (*Advanced Go Patterns*, 10 parts).
-
-The homepage and series page render entirely from `assets/posts.js` — no backend,
-no build. Light is default; the toggle persists to `localStorage` and respects
-`prefers-color-scheme` (set before paint, so no flash).
+The article HTML in `posts/` is an input, not a served page: the generator reads
+the `.prose` block and the app supplies all chrome. The old per-post `<head>`,
+marquee, header and prev/next markup is ignored — leaving it in place is
+harmless, and new posts don't need it.
 
 ## Run locally
 
 ```bash
-cd /Users/boris/workspace/shogol/shogol.me
-python3 -m http.server 8080
-# open http://localhost:8080
+npm install
+npm run dev      # regenerates content, then Vite dev server
+npm run build    # gen → tsc → client build → SSR build → prerender to dist/
+npm run preview  # serve dist/ (note: unknown paths fall back to index.html here,
+                 # where Vercel serves 404.html — an expected local-only difference)
 ```
 
-(Open `index.html` directly works too, except `series.html`'s `?s=` query — use the
-server for that.)
+## Deploy (GitHub + Vercel)
 
-## Deploy (GitHub + Vercel, no backend)
-
-Push to `main` → Vercel auto-deploys.
-
-```bash
-git add -A && git commit -m "…" && git push
-```
-
-In Vercel: import `bshogol/shogolme`, Framework Preset = **Other** (no build command,
-output `/`). No env vars, no functions. `vercel.json` gives clean URLs.
+Push to `main` → Vercel auto-deploys. Framework preset **Vite**, build command
+`npm run build`, output `dist`. `vercel.json` keeps `cleanUrls` on, so
+`/posts/<series>/NN-slug.html` and `/posts/<series>/NN-slug` both resolve —
+every URL the old static site published still works.
 
 ## Add a new post to an existing series
 
-1. Create `posts/<series-slug>/NN-slug.html`. Easiest: copy a sibling post (e.g.
-   `posts/advanced-go-patterns/01-functional-options.html`) and replace `<title>`,
-   the marquee text, `.post-meta` (date · PART NN / TOTAL · read time · category),
-   `.post-title`, `.post-dek`, the `.prose` body, and the `.pn` prev/next links.
-   Keep the `../../assets/...` paths and the no-FOUC `<head>` script as-is.
-2. Build at least one bespoke inline-SVG diagram with the theme-aware classes
-   (`dgm-box`, `dgm-flow`, `dgm-ink`, `dgm-accent`, …), `class="draw"` + `pathLength="1"`
-   on connectors and `class="pop"` on boxes so it animates on scroll.
-   **Never hardcode SVG colors** — use the `dgm-*` classes so light/dark both work.
-3. Add ONE entry to `SHOGOL_POSTS` in `assets/posts.js` (series, part, date, category,
-   title, dek, url). That's what puts it in the timeline + series page.
-4. Open locally, eyeball light **and** dark, then commit + push.
+1. Create `posts/<series>/NN-slug.html`. Only two things are read from it:
+   - `<h1 class="post-title">` / `<p class="post-dek">` / `.post-meta` (for read time)
+   - `<div class="prose">` — the body
+2. Inside `.prose`, use plain semantic HTML: `h2`/`h3`/`h4` (ids are generated),
+   `p`, `ul`, `ol`, `pre><code` (language is auto-detected and highlighted at
+   build time), `<div class="callout"><div class="k">Label</div><p>…</p></div>`,
+   and `<figure class="diagram">` for bespoke inline SVG.
+3. Diagrams: use the theme-aware classes (`dgm-box`, `dgm-box-accent`, `dgm-flow`,
+   `dgm-line`, `dgm-ink`, `dgm-muted`, `dgm-accent`, `dgm-title`), `class="draw"` +
+   `pathLength="1"` on connectors and `class="pop"` on boxes so they animate in.
+   **Never hardcode SVG colours** — the classes carry the light/dark ramp, and in
+   the article scope they resolve to neutral ink steps, never blue.
+4. Add one entry to `posts` in `src/content/registry.json`
+   (`series`, `part`, `date`, `category`, `title`, `dek`, `file`). That places it
+   in the index, the search, the series rail and the prev/next links.
+5. `npm run dev`, check light **and** dark, then commit.
 
 ## Add a whole new series
 
-1. Add an entry to `SHOGOL_SERIES` in `assets/posts.js`:
-   `"my-slug": { title, tag, blurb }`. A filter chip and a working
-   `series.html?s=my-slug` page appear automatically — **no new page files needed**.
-2. Create the folder `posts/my-slug/` and add posts as above, each with a manifest entry.
-
-## Notes for batch conversion (markdown → HTML)
-
-When converting a series of markdown drafts at once, run **one sub-agent per file**,
-each mirroring an existing post (e.g. `posts/tokens-to-agents/01-the-big-picture.html`)
-as the structural template and authoring bespoke SVG diagrams from that post's content.
-Then add all the manifest entries to `posts.js`.
+Add an entry to `series` in `src/content/registry.json`
+(`slug`, `order`, `title`, `tag`, `blurb`), create `posts/<slug>/`, and add posts
+as above. The nav link, the `/series/<slug>` page and the home index section all
+appear on their own — no new page files.
