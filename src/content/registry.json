@@ -13,6 +13,13 @@
       "title": "Advanced Go Patterns",
       "tag": "GO",
       "blurb": "The idioms, tradeoffs, and footguns that separate code that compiles from code that reads like it was written by someone who's shipped a lot of Go. Code-first, real snippets."
+    },
+    {
+      "slug": "ancient-answers",
+      "order": 3,
+      "title": "Ancient Answers",
+      "tag": "PHIL",
+      "blurb": "The arguments that outlived their authors — Socratic refutation, Aristotle's causes, the Stoic recipe, and the questions still open twenty-four centuries later. Argument-first, with diagrams."
     }
   ],
   "posts": [
@@ -249,6 +256,33 @@
       "title": "Background Workers & Job Processing",
       "dek": "Durable, observable background work on top of the concurrency and resiliency primitives you've already learned.",
       "file": "11-background-workers"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 1,
+      "date": "2026-06-24",
+      "category": "Method",
+      "title": "The Socratic Method",
+      "dek": "Not asking questions — a demolition procedure, and why Athens killed the man who ran it.",
+      "file": "01-the-socratic-method"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 2,
+      "date": "2026-06-27",
+      "category": "Ethics",
+      "title": "The Euthyphro Dilemma",
+      "dek": "A fork with two painful horns that cuts any ethics grounded in authority — including the modern kind.",
+      "file": "02-the-euthyphro-dilemma"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 3,
+      "date": "2026-06-30",
+      "category": "Knowledge",
+      "title": "The Cave & the Divided Line",
+      "dek": "Everyone quotes the cave. The line is the actual argument — four grades of knowing, and a gap nobody has closed.",
+      "file": "03-the-cave-and-the-divided-line"
     }
   ]
 }
