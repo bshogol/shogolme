@@ -2,6 +2,7 @@
 *.log
 .vercel
 Thumbs.db
+.claude
 node_modules
 dist
 dist-ssr
