@@ -283,6 +283,60 @@
       "title": "The Cave & the Divided Line",
       "dek": "Everyone quotes the cave. The line is the actual argument — four grades of knowing, and a gap nobody has closed.",
       "file": "03-the-cave-and-the-divided-line"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 4,
+      "date": "2026-07-03",
+      "category": "Identity",
+      "title": "The Ship of Theseus",
+      "dek": "Replace every plank and the puzzle dissolves — once you notice \"same\" is doing two different jobs.",
+      "file": "04-the-ship-of-theseus"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 5,
+      "date": "2026-07-06",
+      "category": "Logic",
+      "title": "Aristotle's Logic",
+      "dek": "The one move that made two thousand years of logic possible: separating form from content.",
+      "file": "05-aristotles-logic"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 6,
+      "date": "2026-07-09",
+      "category": "Metaphysics",
+      "title": "The Four Causes",
+      "dek": "\"Why?\" has four answers. Science kept one and a half — and the rest never actually left.",
+      "file": "06-the-four-causes"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 7,
+      "date": "2026-07-12",
+      "category": "Ethics",
+      "title": "Virtue & the Golden Mean",
+      "dek": "The mean is not the average, and that is exactly why it cannot be written down as a rule.",
+      "file": "07-virtue-and-the-golden-mean"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 8,
+      "date": "2026-07-15",
+      "category": "Ethics",
+      "title": "Phronesis: Practical Wisdom",
+      "dek": "Knowing what this situation calls for — the ancestor of every argument about what can't be proceduralized.",
+      "file": "08-phronesis"
+    },
+    {
+      "series": "ancient-answers",
+      "part": 9,
+      "date": "2026-07-18",
+      "category": "Ethics",
+      "title": "Eudaimonia Is Not Happiness",
+      "dek": "A life assessable only as a whole, and possibly ruinable after your death. The opposite of a wellbeing metric.",
+      "file": "09-eudaimonia"
     }
   ]
 }

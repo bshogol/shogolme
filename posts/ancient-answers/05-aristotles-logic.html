@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Aristotle's Logic — Shogol</title>
+<meta name="description" content="The one move that made two thousand years of logic possible: separating form from content." />
+</head>
+<body>
+
+<article class="article">
+  <div class="post-meta"><span class="date">JUL 6, 2026</span><span><b>PART 05 / 17</b></span><span>7 MIN READ</span><span>LOGIC</span></div>
+  <h1 class="post-title">Aristotle's Logic</h1>
+  <p class="post-dek">The one move that made two thousand years of logic possible: separating form from content.</p>
+
+  <div class="prose">
+    <p>Before Aristotle, people argued well or badly. After him, there was a way to say <em>why</em> an argument was bad that did not depend on knowing whether its subject matter was true. That is the whole achievement, and it is easy to underrate because we have absorbed it so completely.</p>
+
+    <p>The move is this: replace the terms of an argument with letters, and look at what is left. What is left is the form, and the form alone determines whether the conclusion follows.</p>
+
+    <h2>The letters are the invention</h2>
+
+    <p>Take an argument about Socrates and mortality. Now take one about triremes and seaworthiness. They are about nothing in common — but write them schematically and they are the same object:</p>
+
+    <pre data-lang="Argument"><code>All A are B
+All B are C
+∴ All A are C</code></pre>
+
+    <p>Every instance of this pattern is truth-preserving: if the premises are true, the conclusion cannot fail to be. You do not need to know what A, B and C are, and that is exactly the point. Aristotle's schematic letters — as far as we know, the first use of variables in the history of argument — turned "is this a good argument?" from a question about the world into a question about a pattern.</p>
+
+    <p>He catalogued the patterns. A syllogism has two premises and a conclusion, three terms, and each proposition is one of four types: all A are B, no A are B, some A are B, some A are not B. Arrange these systematically and you get a finite space of possible forms — most invalid, a handful valid — which he sorted into figures and proved the valid ones from a small base. It is the first formal system, and it was carried out before anyone had a notation for it.</p>
+
+    <h2>Validity and truth come apart</h2>
+
+    <p>Here is the distinction that the whole apparatus exists to enforce, and the one that most arguments in the wild still trip over.</p>
+
+    <p><strong>Validity</strong> is a property of the form: the conclusion follows from the premises. <strong>Truth</strong> is a property of the individual propositions. An argument can be valid with false premises and a false conclusion. It can also be invalid while every proposition in it happens to be true.</p>
+
+    <figure class="diagram">
+      <svg viewBox="0 0 720 340" role="img" aria-label="A two-by-two grid crossing valid and invalid form with true and false premises; only valid form with true premises is sound">
+        <text class="dgm-title" x="360" y="24" text-anchor="middle" font-size="15">Form and content are independent</text>
+
+        <text class="dgm-muted" x="170" y="62" text-anchor="middle" font-size="12" font-family="monospace">PREMISES TRUE</text>
+        <text class="dgm-muted" x="470" y="62" text-anchor="middle" font-size="12" font-family="monospace">PREMISES FALSE</text>
+        <text class="dgm-muted" x="52" y="130" text-anchor="middle" font-size="12" font-family="monospace" transform="rotate(-90 52 130)">VALID</text>
+        <text class="dgm-muted" x="52" y="252" text-anchor="middle" font-size="12" font-family="monospace" transform="rotate(-90 52 252)">INVALID</text>
+
+        <g class="pop">
+          <rect class="dgm-box-accent" x="80" y="76" width="280" height="108" rx="12"/>
+          <text class="dgm-accent" x="220" y="106" text-anchor="middle" font-size="13.5" font-weight="700">Sound</text>
+          <text class="dgm-muted" x="220" y="132" text-anchor="middle" font-size="11.5">The conclusion is guaranteed true.</text>
+          <text class="dgm-muted" x="220" y="154" text-anchor="middle" font-size="11.5">This is the only cell that gets you</text>
+          <text class="dgm-muted" x="220" y="172" text-anchor="middle" font-size="11.5">knowledge from an argument.</text>
+        </g>
+
+        <g class="pop d2">
+          <rect class="dgm-box" x="380" y="76" width="280" height="108" rx="12"/>
+          <text class="dgm-ink" x="520" y="106" text-anchor="middle" font-size="13.5" font-weight="600">Valid, unsound</text>
+          <text class="dgm-muted" x="520" y="132" text-anchor="middle" font-size="11.5">Perfect reasoning, garbage input.</text>
+          <text class="dgm-muted" x="520" y="154" text-anchor="middle" font-size="11.5">The conclusion may be anything —</text>
+          <text class="dgm-muted" x="520" y="172" text-anchor="middle" font-size="11.5">true by luck, or false.</text>
+        </g>
+
+        <g class="pop d3">
+          <rect class="dgm-box" x="80" y="196" width="280" height="108" rx="12"/>
+          <text class="dgm-ink" x="220" y="226" text-anchor="middle" font-size="13.5" font-weight="600">Invalid, true premises</text>
+          <text class="dgm-muted" x="220" y="252" text-anchor="middle" font-size="11.5">The conclusion can still be true —</text>
+          <text class="dgm-muted" x="220" y="274" text-anchor="middle" font-size="11.5">but not <tspan font-style="italic">because</tspan> of the argument.</text>
+          <text class="dgm-muted" x="220" y="292" text-anchor="middle" font-size="11.5">The most dangerous cell.</text>
+        </g>
+
+        <g class="pop d4">
+          <rect class="dgm-box" x="380" y="196" width="280" height="108" rx="12"/>
+          <text class="dgm-ink" x="520" y="226" text-anchor="middle" font-size="13.5" font-weight="600">Invalid, false premises</text>
+          <text class="dgm-muted" x="520" y="252" text-anchor="middle" font-size="11.5">Nothing to salvage.</text>
+          <text class="dgm-muted" x="520" y="274" text-anchor="middle" font-size="11.5">Also the easiest to spot,</text>
+          <text class="dgm-muted" x="520" y="292" text-anchor="middle" font-size="11.5">and therefore the least harmful.</text>
+        </g>
+      </svg>
+      <figcaption>Checking the form and checking the premises are two separate jobs — doing one is not doing the other</figcaption>
+    </figure>
+
+    <p>The bottom-left cell is where real damage happens. An argument whose premises are all true and whose conclusion is true, but whose form is invalid, looks like knowledge and is not. It supplies no support for its conclusion; it merely sits next to it.</p>
+
+    <pre data-lang="Argument"><code>All experts agree the system is secure
+The system has never been breached
+∴ The system is secure
+
+Form:  All A are B · C has not been D · ∴ C is B
+Verdict: invalid — the conclusion is asserted, not derived.
+         Both premises can be true and it proves nothing.</code></pre>
+
+    <h2>What his logic could not do</h2>
+
+    <p>The system dominated for over two thousand years, and Kant, writing in the 1780s, thought it was finished — complete, with nothing left to add. He was wrong in a specific and interesting way.</p>
+
+    <p>Syllogistic handles one level of generality at a time. It struggles with inferences involving relations, and it cannot express a sentence with nested quantifiers at all: <em>every student has an advisor</em> and <em>some advisor advises every student</em> have different meanings and different consequences, but syllogistic has no way to write the difference down. Two millennia of logicians noticed the gap and patched around it without solving it.</p>
+
+    <p>Frege's <em>Begriffsschrift</em>, in 1879, replaced the whole apparatus: quantifiers, variables ranging over objects, and functions applied to arguments. That is the logic underneath every proof assistant and type system in use today. Aristotle's system was not so much corrected as absorbed — every valid syllogism remains valid, as a small special case of something much larger.</p>
+
+    <div class="callout">
+      <div class="k">The part that survived intact</div>
+      <p>Not the syllogism — the idea that validity is a property of <em>form</em>, checkable without knowing the subject matter. That is what makes a type checker possible, and what makes it possible for a machine to verify a proof it does not understand.</p>
+    </div>
+
+    <h2>Why it still matters at a keyboard</h2>
+
+    <p>Every static type check is a formal validity check with the content stripped out. The compiler does not know what your <code>UserID</code> means; it knows the shape of the composition, and it rejects the ones that cannot go through. When it passes your program, it is telling you exactly what a valid syllogism tells you: <em>if</em> your premises hold — your types describe what you think they describe — the conclusion follows. It is not telling you the premises are true. Sound types, wrong model of the domain, and you get a correct derivation of the wrong thing.</p>
+
+    <p>The habit transfers to reading arguments too, and it is the cheapest reasoning tool there is. Strip the terms, look at the shape, and ask whether the shape could carry you from true premises to a false conclusion. Most persuasive-sounding bad arguments fail this immediately, and they fail it for reasons that have nothing to do with the topic being argued — which is precisely what Aristotle was pointing at.</p>
+
+    <div class="callout">
+      <div class="k">The takeaway</div>
+      <p>Aristotle's letters separated the shape of an argument from what it was about, which made validity a checkable property and logic a subject. The syllogism itself was superseded in 1879; the separation was not, and it is why a machine can check a proof it has no understanding of.</p>
+    </div>
+  </div>
+</article>
+
+</body>
+</html>
