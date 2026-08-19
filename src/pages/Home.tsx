@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { SearchIcon, SiteHeader } from "../components/SiteHeader";
 import { SeriesDirectory } from "../components/SeriesDirectory";
@@ -6,6 +6,8 @@ import { SiteFooter } from "../components/SiteFooter";
 import { articlePath, articles, formatDate, pad2, series, totals } from "../lib/content";
 import { search } from "../lib/search";
 import { usePageMeta } from "../lib/meta";
+
+const PixelBlast = lazy(() => import("../components/PixelBlast"));
 
 export function Home() {
   const [query, setQuery] = useState("");
@@ -18,8 +20,28 @@ export function Home() {
     path: "/",
   });
 
+  const color = useSyncExternalStore(subscribeDark, darkBlue, () => "#2563eb");
+  const reduceMotion = useSyncExternalStore(subscribeMotion, prefersReducedMotion, () => true);
+
   return (
-    <>
+    <div className="home-shell">
+      {!reduceMotion && (
+        <div className="hero-bg" aria-hidden="true">
+          <Suspense fallback={null}>
+            <PixelBlast
+              variant="square"
+              pixelSize={4}
+              color={color}
+              patternScale={2}
+              patternDensity={1}
+              enableRipples
+              speed={0.5}
+              edgeFade={0.35}
+              transparent
+            />
+          </Suspense>
+        </div>
+      )}
       <SiteHeader />
       <main className="home" id="content">
         <section className="hero">
@@ -109,6 +131,26 @@ export function Home() {
         </section>
       </main>
       <SiteFooter />
-    </>
+    </div>
   );
+}
+
+function subscribeDark(onStoreChange: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", onStoreChange);
+  return () => media.removeEventListener("change", onStoreChange);
+}
+
+function darkBlue() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "#3b82f6" : "#2563eb";
+}
+
+function subscribeMotion(onStoreChange: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", onStoreChange);
+  return () => media.removeEventListener("change", onStoreChange);
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
