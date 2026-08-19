@@ -11,7 +11,7 @@ export function SiteFooter() {
           </span>
           <div>
             <p className="foot-name">shogol</p>
-            <p className="foot-tag">Field notes on software — written in the open.</p>
+            <p className="foot-tag">Thoughts · Notes · Interests</p>
           </div>
         </div>
 
@@ -24,12 +24,10 @@ export function SiteFooter() {
           ))}
         </nav>
 
-        <nav className="foot-links" aria-label="Elsewhere">
-          <p className="mono foot-head">Elsewhere</p>
-          <a href="https://github.com/bshogol" target="_blank" rel="noopener">
-            GitHub
-          </a>
+        <nav className="foot-links" aria-label="Site">
+          <p className="mono foot-head">Site</p>
           <Link to="/">Full index</Link>
+          <Link to="/series">All series</Link>
         </nav>
       </div>
 

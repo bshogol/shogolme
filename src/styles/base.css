@@ -106,39 +106,6 @@ kbd {
 
 /* ---- buttons ----------------------------------------------------------- */
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 9999px;
-  font-size: 13.5px;
-  font-weight: 500;
-  transition: background var(--dur-fast) var(--ease-beat), border-color var(--dur-fast) var(--ease-beat),
-    color var(--dur-fast) var(--ease-beat);
-}
-
-.btn:active {
-  transform: scale(0.98);
-}
-
-.btn--primary {
-  background: var(--fg);
-  color: var(--bg);
-}
-
-.btn--ghost {
-  border: 1px solid var(--border-strong);
-  color: var(--text-2);
-}
-
-.btn--ghost:hover {
-  border-color: var(--border-hover);
-  color: var(--fg);
-  background: var(--panel);
-}
-
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -542,7 +509,6 @@ kbd {
 
 @media (max-width: 960px) {
   .bar-nav,
-  .bar-github,
   .search-trigger-label,
   .search-trigger kbd {
     display: none;

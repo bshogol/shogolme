@@ -35,6 +35,14 @@
   margin: 20px 0 0;
 }
 
+.hero-title--stack {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  margin-top: 0;
+  line-height: 1.08;
+}
+
 .hero-title--sm {
   font-size: clamp(2rem, 4.2vw, 3rem);
   max-width: 22ch;

@@ -54,9 +54,6 @@ export function SiteHeader({ fullBleed = false }: { fullBleed?: boolean }) {
               <span className="search-trigger-label">Search</span>
               <kbd className="mono">⌘K</kbd>
             </button>
-            <a className="btn btn--ghost bar-github" href="https://github.com/bshogol" target="_blank" rel="noopener">
-              GitHub
-            </a>
             <button
               className="icon-btn bar-burger"
               aria-label="Menu"
@@ -90,9 +87,6 @@ export function SiteHeader({ fullBleed = false }: { fullBleed?: boolean }) {
                 {s.title}
               </Link>
             ))}
-            <a href="https://github.com/bshogol" target="_blank" rel="noopener">
-              GitHub
-            </a>
           </div>
         )}
       </header>

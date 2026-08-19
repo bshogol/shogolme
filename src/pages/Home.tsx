@@ -13,9 +13,8 @@ export function Home() {
   const recent = articles.slice(0, 3);
 
   usePageMeta({
-    title: "Shogol — Field notes on software",
-    description:
-      "A working wiki of long-form series on how things actually work — from large language models and the engines that serve them, to the Go patterns behind production code.",
+    title: "Shogol — Thoughts, notes, interests",
+    description: "Thoughts, notes, and interests — long-form series on how things actually work.",
     path: "/",
   });
 
@@ -24,16 +23,11 @@ export function Home() {
       <SiteHeader />
       <main className="home" id="content">
         <section className="hero">
-          <p className="eyebrow mono">
-            <span className="eyebrow-dot" aria-hidden="true" />
-            Written in the open
-          </p>
-          <h1 className="hero-title">Field notes on software.</h1>
-          <p className="hero-lede">
-            A working wiki of long-form series on how things actually work — from large language models and the
-            engines that serve them, to the Go patterns behind production code. Start anywhere; every article stands
-            on its own.
-          </p>
+          <h1 className="hero-title hero-title--stack">
+            <span>Thoughts</span>
+            <span>Notes</span>
+            <span>Interests</span>
+          </h1>
 
           <div className="hero-search">
             <SearchIcon />
