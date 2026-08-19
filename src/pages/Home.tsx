@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { SearchIcon, SiteHeader } from "../components/SiteHeader";
 import { SeriesDirectory } from "../components/SeriesDirectory";
@@ -7,33 +7,49 @@ import { articlePath, articles, formatDate, pad2, series, totals } from "../lib/
 import { search } from "../lib/search";
 import { usePageMeta } from "../lib/meta";
 
+const PixelBlast = lazy(() => import("../components/PixelBlast"));
+
 export function Home() {
   const [query, setQuery] = useState("");
   const hits = useMemo(() => search(query, 10), [query]);
   const recent = articles.slice(0, 3);
 
   usePageMeta({
-    title: "Shogol — Field notes on software",
-    description:
-      "A working wiki of long-form series on how things actually work — from large language models and the engines that serve them, to the Go patterns behind production code.",
+    title: "Shogol — Thoughts, notes, interests",
+    description: "Thoughts, notes, and interests — long-form series on how things actually work.",
     path: "/",
   });
 
+  const color = useSyncExternalStore(subscribeDark, darkBlue, () => "#2563eb");
+  const reduceMotion = useSyncExternalStore(subscribeMotion, prefersReducedMotion, () => true);
+
   return (
-    <>
+    <div className="home-shell">
+      {!reduceMotion && (
+        <div className="hero-bg" aria-hidden="true">
+          <Suspense fallback={null}>
+            <PixelBlast
+              variant="square"
+              pixelSize={4}
+              color={color}
+              patternScale={2}
+              patternDensity={1}
+              enableRipples
+              speed={0.5}
+              edgeFade={0.35}
+              transparent
+            />
+          </Suspense>
+        </div>
+      )}
       <SiteHeader />
       <main className="home" id="content">
         <section className="hero">
-          <p className="eyebrow mono">
-            <span className="eyebrow-dot" aria-hidden="true" />
-            Written in the open
-          </p>
-          <h1 className="hero-title">Field notes on software.</h1>
-          <p className="hero-lede">
-            A working wiki of long-form series on how things actually work — from large language models and the
-            engines that serve them, to the Go patterns behind production code. Start anywhere; every article stands
-            on its own.
-          </p>
+          <h1 className="hero-title hero-title--stack">
+            <span>Thoughts</span>
+            <span>Notes</span>
+            <span>Interests</span>
+          </h1>
 
           <div className="hero-search">
             <SearchIcon />
@@ -115,6 +131,26 @@ export function Home() {
         </section>
       </main>
       <SiteFooter />
-    </>
+    </div>
   );
+}
+
+function subscribeDark(onStoreChange: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", onStoreChange);
+  return () => media.removeEventListener("change", onStoreChange);
+}
+
+function darkBlue() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "#3b82f6" : "#2563eb";
+}
+
+function subscribeMotion(onStoreChange: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", onStoreChange);
+  return () => media.removeEventListener("change", onStoreChange);
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }

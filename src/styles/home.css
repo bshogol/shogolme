@@ -1,7 +1,27 @@
 /* Home, series and 404: the marketing scope. Pure ground, hairline rules,
    blue only as a pointer — the eyebrow dot, focus rings, the hover ink. */
 
+.home-shell {
+  position: relative;
+}
+
+.hero-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-bg .pixel-blast-container {
+  pointer-events: auto;
+}
+
 .home {
+  position: relative;
+  z-index: 1;
   max-width: var(--container);
   margin: 0 auto;
   padding: calc(var(--header-h) + 72px) var(--gutter) 0;
@@ -33,6 +53,14 @@
   letter-spacing: -0.035em;
   max-width: 18ch;
   margin: 20px 0 0;
+}
+
+.hero-title--stack {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  margin-top: 0;
+  line-height: 1.08;
 }
 
 .hero-title--sm {

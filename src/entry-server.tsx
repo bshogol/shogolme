@@ -23,8 +23,8 @@ export async function render(url: string): Promise<Rendered> {
   );
 
   const meta = takeCapturedMeta() ?? {
-    title: "Shogol — Field notes on software",
-    description: "Long-form series on how things actually work.",
+    title: "Shogol — Thoughts, notes, interests",
+    description: "Thoughts, notes, and interests — long-form series on how things actually work.",
     path: url,
   };
 
