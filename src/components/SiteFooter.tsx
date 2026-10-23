@@ -11,7 +11,7 @@ export function SiteFooter() {
           </span>
           <div>
             <p className="foot-name">shogol</p>
-            <p className="foot-tag">Thoughts · Notes · Interests</p>
+            <p className="foot-tag">Long-form series on AI, Go, and philosophy.</p>
           </div>
         </div>
 

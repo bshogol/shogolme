@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { articlePath, pad2, partsOf, seriesPath } from "../lib/content";
+import { articlePath, dateRange, pad2, partsOf, seriesPath } from "../lib/content";
 import type { Series } from "../lib/content";
 
 /** A numbered directory of series — the wiki's table of contents.
@@ -27,7 +27,10 @@ export function SeriesDirectory({ series, preview }: { series: Series[]; preview
                   <Link to={seriesPath(s.slug)}>{s.title}</Link>
                 </h3>
                 <span className="mono tag">{s.tag}</span>
-                <span className="mono dir-count">{parts.length} parts</span>
+                <span className="mono dir-count">
+                  {parts.length} {parts.length === 1 ? "part" : "parts"}
+                  {parts.length > 0 ? ` · ${dateRange(parts.map((part) => part.date))}` : ""}
+                </span>
               </div>
 
               <p className="dir-blurb">{s.blurb}</p>
