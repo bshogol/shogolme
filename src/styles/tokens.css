@@ -18,8 +18,9 @@
   --panel-3: #e4e4e7;
   --fg: #09090b;
   --text-2: #52525b;
-  --text-3: #71717a;
-  --text-4: #a1a1aa;
+  /* --text-3 / --text-4 clear 4.5:1 on #fff and on the #fafafa panel. */
+  --text-3: #5e636b;
+  --text-4: #6c7078;
   --border: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.12);
   --border-hover: rgba(0, 0, 0, 0.18);
@@ -39,8 +40,9 @@
   --d-border-strong: #a8a8a4;
   --d-ink: #0a0a0a;
   --d-ink-strong: #0a0a0a;
-  --d-ink-muted: #6c7078;
-  --d-ink-subtle: #84888f;
+  /* Muted and subtle both clear 4.5:1 on #fff and on #f3f3f1. */
+  --d-ink-muted: #565b63;
+  --d-ink-subtle: #6a6e76;
   --d-nav-active: #f0f0ee;
   --d-nav-active-fg: #0a0a0a;
   --d-code-bg: #fafaf9;
@@ -70,8 +72,9 @@
   --panel-3: #161616;
   --fg: #ededed;
   --text-2: #a1a1aa;
-  --text-3: #71717a;
-  --text-4: #52525b;
+  /* --text-3 / --text-4 clear 4.5:1 on #000 and on the #0a0a0a / #111 panels. */
+  --text-3: #8a8f98;
+  --text-4: #7c8088;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.12);
   --border-hover: rgba(255, 255, 255, 0.18);
@@ -92,7 +95,8 @@
   --d-ink: #d6dae2;
   --d-ink-strong: #ffffff;
   --d-ink-muted: #8a8f98;
-  --d-ink-subtle: #6e737c;
+  /* Lighter than the old subtle so it clears 4.5:1 on #0a0a0a and #121212. */
+  --d-ink-subtle: #80858d;
   --d-nav-active: #212121;
   --d-nav-active-fg: #ffffff;
   --d-code-bg: #121212;

@@ -181,8 +181,8 @@
 .art-lede {
   max-width: var(--prose);
   margin-top: 14px;
-  font-size: 16px;
-  line-height: 26px;
+  font-size: 18px;
+  line-height: 1.6;
   color: var(--d-ink-muted);
 }
 
@@ -202,10 +202,10 @@
    the full 56rem column. One uniform wide measure reads washed out. */
 
 .prose {
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 17px;
+  line-height: 1.7;
   color: var(--d-ink);
-  padding: 32px 0 8px;
+  padding: 36px 0 8px;
 }
 
 .prose > * {
@@ -227,7 +227,7 @@
 .prose ul,
 .prose ol,
 .prose blockquote {
-  margin-bottom: 16px;
+  margin-bottom: 1.15em;
 }
 
 .prose h2,
@@ -239,23 +239,75 @@
 }
 
 .prose h2 {
-  font-size: 30px;
-  line-height: 36px;
+  font-size: 1.85rem;
+  line-height: 1.25;
   letter-spacing: -0.02em;
-  margin: 48px 0 16px;
+  margin: 2.4em 0 0.65em;
 }
 
 .prose h3 {
-  font-size: 20px;
-  line-height: 28px;
+  font-size: 1.35rem;
+  line-height: 1.35;
   letter-spacing: -0.015em;
-  margin: 32px 0 12px;
+  margin: 1.8em 0 0.45em;
 }
 
 .prose h4 {
-  font-size: 15px;
-  line-height: 24px;
-  margin: 26px 0 8px;
+  font-size: 1.12rem;
+  line-height: 1.4;
+  margin: 1.5em 0 0.35em;
+}
+
+.prose :is(h2, h3, h4) {
+  position: relative;
+}
+
+.heading-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 8px;
+  vertical-align: middle;
+  border-radius: 8px;
+  color: var(--d-ink-subtle);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-beat), background var(--dur-fast) var(--ease-beat);
+}
+
+.heading-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+.prose :is(h2, h3, h4):hover .heading-link,
+.heading-link:focus-visible,
+.heading-link.is-copied {
+  opacity: 1;
+}
+
+.heading-link:hover {
+  background: var(--d-subtle);
+  color: var(--d-ink-strong);
+}
+
+.heading-link.is-copied svg {
+  display: none;
+}
+
+.heading-link.is-copied::after {
+  content: "✓";
+  font-size: 14px;
+  font-family: var(--font-sans);
+}
+
+@media (pointer: coarse) {
+  .heading-link {
+    width: 44px;
+    height: 44px;
+    opacity: 0.85;
+  }
 }
 
 .prose strong {
@@ -305,7 +357,7 @@
 
 .prose :not(pre) > code {
   font-family: var(--font-mono);
-  font-size: 0.86em;
+  font-size: 0.84em;
   font-weight: 400;
   background: var(--d-subtle);
   border: 1px solid var(--d-border);
@@ -317,7 +369,7 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.92em;
+  font-size: 0.9em;
   border: 1px solid var(--d-border);
   border-radius: 10px;
   overflow: hidden;
@@ -341,8 +393,9 @@
    colour is the message. */
 
 .prose .callout {
-  margin: 24px 0;
-  padding: 14px 18px;
+  margin: 1.4em 0;
+  padding: 16px 18px;
+  font-size: 0.97em;
   border: 1px solid var(--d-border);
   border-left: 3px solid color-mix(in srgb, var(--d-ink) 28%, transparent);
   border-radius: 0 10px 10px 0;
@@ -526,9 +579,31 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin: 48px 0 72px;
+  margin: 48px 0 0;
   padding-top: 32px;
   border-top: 1px solid var(--d-border);
+}
+
+.art-related {
+  margin: 28px 0 72px;
+}
+
+.wiki-col > .art-pn:last-child {
+  margin-bottom: 72px;
+}
+
+.art-related-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--d-ink-subtle);
+  margin-bottom: 12px;
+}
+
+.art-related-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .pn-card {
@@ -604,6 +679,43 @@
   padding-left: 24px;
 }
 
+.read-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 80;
+  width: 100%;
+  height: 2px;
+  background: var(--d-ink-strong);
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.page-outline {
+  display: none;
+  margin: 20px 0 0;
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  background: var(--d-muted);
+}
+
+.page-outline summary {
+  min-height: 44px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-ink-muted);
+}
+
+.page-outline nav {
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px 12px;
+}
+
 /* ---- responsive -------------------------------------------------------- */
 
 @media (max-width: 1280px) {
@@ -612,6 +724,9 @@
   }
   .wiki-outline {
     display: none;
+  }
+  .page-outline {
+    display: block;
   }
 }
 
@@ -628,10 +743,14 @@
     height: auto;
     background: var(--d-surface);
     transform: translateX(-100%);
+    visibility: hidden;
+    pointer-events: none;
     transition: transform var(--dur-base) var(--ease-beat);
   }
   .wiki-rail.is-open {
     transform: none;
+    visibility: visible;
+    pointer-events: auto;
   }
   .rail-scrim {
     position: fixed;
@@ -660,7 +779,8 @@
   .art-crumbs {
     white-space: nowrap;
   }
-  .art-pn {
+  .art-pn,
+  .art-related-grid {
     grid-template-columns: 1fr;
   }
   .pn-card--next {

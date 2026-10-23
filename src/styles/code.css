@@ -16,8 +16,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: 36px;
-  padding: 0 8px 0 14px;
+  min-height: 52px;
+  padding: 4px 6px 4px 14px;
   background: var(--d-code-head);
   border-bottom: 1px solid var(--d-border);
 }
@@ -34,12 +34,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 6px;
-  border-radius: 7px;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border-radius: 8px;
   color: var(--d-ink-muted);
   transition: background var(--dur-fast) var(--ease-beat), color var(--dur-fast) var(--ease-beat);
+}
+
+.code-copy svg {
+  width: 18px;
+  height: 18px;
 }
 
 .code-copy:hover {
@@ -73,8 +79,8 @@
 .code-panel code,
 .prose pre code {
   font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 24px;
+  font-size: 14.5px;
+  line-height: 1.65;
   background: none;
   border: none;
   padding: 0;

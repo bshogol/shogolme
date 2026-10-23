@@ -2,10 +2,10 @@ import { renderToString } from "react-dom/server";
 import { StaticRouter } from "react-router";
 import { App } from "./App";
 import { loadArticle, seedArticle } from "./lib/content";
-import { canonical, takeCapturedMeta } from "./lib/meta";
+import { DEFAULT_TITLE, SITE_DESCRIPTION, renderExtraHead, takeCapturedMeta } from "./lib/meta";
 import type { PageMeta } from "./lib/meta";
 
-export type Rendered = { html: string; meta: PageMeta; canonical: string };
+export type Rendered = { html: string; meta: PageMeta; head: string };
 
 /** One route in, one static page out. Article bodies are seeded into the cache
  *  first so the render is synchronous and complete. */
@@ -23,12 +23,13 @@ export async function render(url: string): Promise<Rendered> {
   );
 
   const meta = takeCapturedMeta() ?? {
-    title: "Shogol — Thoughts, notes, interests",
-    description: "Thoughts, notes, and interests — long-form series on how things actually work.",
+    title: DEFAULT_TITLE,
+    description: SITE_DESCRIPTION,
     path: url,
   };
+  if (!meta.path && !meta.noindex) meta.path = url;
 
-  return { html, meta, canonical: canonical(meta.path ?? url) };
+  return { html, meta, head: renderExtraHead(meta) };
 }
 
 export { routes } from "./lib/routes";

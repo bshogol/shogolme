@@ -32,13 +32,25 @@ export function ArticleBody({ html }: { html: string }) {
     const root = ref.current;
     if (!root) return;
     const onClick = async (event: MouseEvent) => {
+      const headingLink = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-heading-link]");
+      if (headingLink) {
+        const id = headingLink.closest("h2, h3, h4")?.id;
+        if (!id) return;
+        const url = `${location.origin}${location.pathname}${location.search}#${id}`;
+        try {
+          await navigator.clipboard.writeText(url);
+          markCopied(headingLink);
+        } catch {
+          // Clipboard gated (insecure context, denied permission) — say nothing.
+        }
+        return;
+      }
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-copy]");
       const code = button?.parentElement?.parentElement?.querySelector("pre");
       if (!button || !code) return;
       try {
         await navigator.clipboard.writeText(code.innerText);
-        button.classList.add("is-copied");
-        setTimeout(() => button.classList.remove("is-copied"), 1400);
+        markCopied(button);
       } catch {
         // Clipboard gated (insecure context, denied permission) — say nothing.
       }
@@ -76,4 +88,9 @@ export function ArticleBody({ html }: { html: string }) {
   }, [html]);
 
   return <div className="prose" ref={ref} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function markCopied(button: HTMLButtonElement) {
+  button.classList.add("is-copied");
+  window.setTimeout(() => button.classList.remove("is-copied"), 1400);
 }

@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     // Generated article bodies are code-split one chunk per article, so the
-    // home page never downloads 26 articles' worth of HTML.
+    // home page never downloads every article's HTML.
     assetsInlineLimit: 0,
   },
 });

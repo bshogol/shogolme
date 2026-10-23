@@ -1,12 +1,13 @@
 /* Build-time content pipeline.
  *
- * The 26 article bodies live in /posts as hand-written HTML — that stays the
- * source of truth. This script lifts each `.prose` block out, gives every
- * heading a stable id, rewrites sibling links to app routes, highlights code
- * (in Node, so the prerendered HTML ships already coloured) and writes one
- * JSON per article plus a small search index the home page can afford to load.
+ * Article bodies live in /posts as hand-written HTML — that stays the source
+ * of truth. This script lifts each `.prose` block out, gives every heading a
+ * stable id, rewrites sibling links to app routes, highlights code (in Node,
+ * so the prerendered HTML ships already coloured) and writes one JSON per
+ * article plus a small search index the home page can afford to load.
  *
  * Output is generated, not committed: `npm run gen` runs before dev and build.
+ * The script prints how many articles it wrote.
  */
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -53,6 +54,11 @@ const COPY_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">' +
   '<rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 012-2h8"/></svg>';
 
+const LINK_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">' +
+  '<path d="M10 13a5 5 0 007.07.07l1.76-1.76a5 5 0 00-7.07-7.07L10.5 5.5"/>' +
+  '<path d="M14 11a5 5 0 00-7.07-.07L5.17 12.7a5 5 0 007.07 7.07l1.26-1.26"/></svg>';
+
 const slugify = (text) =>
   text
     .toLowerCase()
@@ -98,6 +104,11 @@ function buildArticle(post, series) {
     if (count) id = `${id}-${count + 1}`;
     node.setAttribute("id", id);
     headings.push({ id, text, level: Number(node.rawTagName.slice(1)) });
+    // Captured before the button exists, so "Copy link" never lands in the outline.
+    node.insertAdjacentHTML(
+      "beforeend",
+      `<button type="button" class="heading-link" data-heading-link aria-label="Copy link to this section">${LINK_ICON}</button>`,
+    );
   }
 
   // ---- sibling links -> app routes ---------------------------------------

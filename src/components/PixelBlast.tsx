@@ -406,6 +406,7 @@ export function PixelBlast({
     };
     resizeObserver?: ResizeObserver;
     raf?: number;
+    kick?: () => void;
     quad?: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
     timeOffset?: number;
     composer?: EffectComposer;
@@ -586,8 +587,11 @@ export function PixelBlast({
       });
       let raf = 0;
       const animate = () => {
+        // Stop the loop while the hero is offscreen or the tab is hidden.
+        // Scheduling another frame here would keep the GPU awake.
         if (autoPauseOffscreen && !visibilityRef.current.visible) {
-          raf = requestAnimationFrame(animate);
+          raf = 0;
+          if (threeRef.current) threeRef.current.raf = 0;
           return;
         }
         uniforms.uTime.value = timeOffset + clock.getElapsedTime() * speedRef.current;
@@ -610,8 +614,14 @@ export function PixelBlast({
           composer.render();
         } else renderer.render(scene, camera);
         raf = requestAnimationFrame(animate);
+        if (threeRef.current) threeRef.current.raf = raf;
       };
-      raf = requestAnimationFrame(animate);
+      const kick = () => {
+        if (raf) return;
+        if (autoPauseOffscreen && !visibilityRef.current.visible) return;
+        raf = requestAnimationFrame(animate);
+        if (threeRef.current) threeRef.current.raf = raf;
+      };
       threeRef.current = {
         renderer,
         scene,
@@ -622,12 +632,14 @@ export function PixelBlast({
         uniforms,
         resizeObserver: ro,
         raf,
+        kick,
         quad,
         timeOffset,
         composer,
         touch,
         liquidEffect
       };
+      kick();
     } else {
       const t = threeRef.current!;
       t.uniforms.uShapeType.value = SHAPE_MAP[variant] ?? 0;
@@ -689,6 +701,31 @@ export function PixelBlast({
     color,
     speed
   ]);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || !autoPauseOffscreen) {
+      visibilityRef.current.visible = true;
+      threeRef.current?.kick?.();
+      return;
+    }
+    let onScreen = true;
+    const apply = () => {
+      visibilityRef.current.visible = onScreen && document.visibilityState !== "hidden";
+      if (visibilityRef.current.visible) threeRef.current?.kick?.();
+    };
+    const observer = new IntersectionObserver((entries) => {
+      onScreen = entries.some((entry) => entry.isIntersecting);
+      apply();
+    });
+    observer.observe(node);
+    document.addEventListener("visibilitychange", apply);
+    apply();
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", apply);
+    };
+  }, [autoPauseOffscreen]);
 
   return (
     <div

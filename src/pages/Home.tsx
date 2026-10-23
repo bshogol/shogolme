@@ -1,31 +1,36 @@
-import { lazy, Suspense, useMemo, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { SearchIcon, SiteHeader } from "../components/SiteHeader";
 import { SeriesDirectory } from "../components/SeriesDirectory";
 import { SiteFooter } from "../components/SiteFooter";
-import { articlePath, articles, formatDate, pad2, series, totals } from "../lib/content";
+import { onComboKeyDown } from "../lib/combo";
+import { articlePath, articles, formatDate, pad2, partsOf, series, totals } from "../lib/content";
+import { DEFAULT_TITLE, SITE_DESCRIPTION, usePageMeta } from "../lib/meta";
 import { search } from "../lib/search";
-import { usePageMeta } from "../lib/meta";
 
 const PixelBlast = lazy(() => import("../components/PixelBlast"));
 
 export function Home() {
   const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
   const hits = useMemo(() => search(query, 10), [query]);
-  const recent = articles.slice(0, 3);
+  const newest = articles[0];
+  const showEffect = useHeroEffect();
+  const searching = query.trim().length > 0;
+  const listId = "home-search-list";
+  const activeId = searching && hits[active] ? `home-search-opt-${active}` : undefined;
 
   usePageMeta({
-    title: "Shogol — Thoughts, notes, interests",
-    description: "Thoughts, notes, and interests — long-form series on how things actually work.",
+    title: DEFAULT_TITLE,
+    description: SITE_DESCRIPTION,
     path: "/",
   });
 
   const color = useSyncExternalStore(subscribeDark, darkBlue, () => "#2563eb");
-  const reduceMotion = useSyncExternalStore(subscribeMotion, prefersReducedMotion, () => true);
 
   return (
     <div className="home-shell">
-      {!reduceMotion && (
+      {showEffect && (
         <div className="hero-bg" aria-hidden="true">
           <Suspense fallback={null}>
             <PixelBlast
@@ -38,6 +43,7 @@ export function Home() {
               speed={0.5}
               edgeFade={0.35}
               transparent
+              autoPauseOffscreen
             />
           </Suspense>
         </div>
@@ -45,20 +51,49 @@ export function Home() {
       <SiteHeader />
       <main className="home" id="content">
         <section className="hero">
-          <h1 className="hero-title hero-title--stack">
-            <span>Thoughts</span>
-            <span>Notes</span>
-            <span>Interests</span>
-          </h1>
+          <p className="eyebrow mono">
+            <span className="eyebrow-dot" aria-hidden="true" />
+            shogol.me
+          </p>
+          <h1 className="hero-title hero-title--plain">Long-form series on AI, Go, and philosophy by Boris Shogol.</h1>
 
           <div className="hero-search">
             <SearchIcon />
             <input
+              role="combobox"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setActive(0);
+              }}
+              onKeyDown={(event) =>
+                onComboKeyDown(
+                  event,
+                  active,
+                  hits.length,
+                  setActive,
+                  (index) => {
+                    const hit = hits[index];
+                    if (hit) {
+                      // Navigation is the link itself when clicked. Enter follows the active option.
+                      const node = document.getElementById(`home-search-opt-${index}`);
+                      if (node instanceof HTMLAnchorElement) node.click();
+                    }
+                  },
+                  () => {
+                    if (query) setQuery("");
+                    else (event.target as HTMLInputElement).blur();
+                  },
+                )
+              }
               placeholder={`Search ${totals.articles} articles…`}
               aria-label="Search articles"
+              aria-autocomplete="list"
+              aria-expanded={searching}
+              aria-controls={searching ? listId : undefined}
+              aria-activedescendant={activeId}
               autoComplete="off"
+              spellCheck={false}
             />
             {query && (
               <button className="hero-search-clear" onClick={() => setQuery("")} aria-label="Clear search">
@@ -67,11 +102,23 @@ export function Home() {
             )}
           </div>
 
-          {query ? (
-            <div className="hero-results">
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {searching ? `${hits.length} ${hits.length === 1 ? "result" : "results"}` : ""}
+          </p>
+
+          {searching ? (
+            <div id={listId} className="hero-results" role="listbox" aria-label="Search results">
               {hits.length ? (
-                hits.map((hit) => (
-                  <Link key={hit.article.key} to={articlePath(hit.article)} className="hit">
+                hits.map((hit, index) => (
+                  <Link
+                    key={hit.article.key}
+                    id={`home-search-opt-${index}`}
+                    to={articlePath(hit.article)}
+                    role="option"
+                    aria-selected={index === active}
+                    className={`hit${index === active ? " is-active" : ""}`}
+                    onMouseEnter={() => setActive(index)}
+                  >
                     <span className="mono hit-num">{pad2(hit.article.part)}</span>
                     <span className="hit-text">
                       <span className="hit-title">{hit.article.title}</span>
@@ -100,21 +147,39 @@ export function Home() {
           )}
         </section>
 
-        <section className="recent">
-          <h2 className="section-head mono">Recently published</h2>
-          <div className="recent-grid">
-            {recent.map((article) => (
-              <Link key={article.key} to={articlePath(article)} className="card">
-                <span className="mono card-meta">
-                  {article.seriesTitle} · Part {pad2(article.part)}
-                </span>
-                <h3 className="card-title">{article.title}</h3>
-                <p className="card-dek">{article.dek}</p>
-                <span className="mono card-foot">
-                  {formatDate(article.date)} · {article.readMinutes} min
-                </span>
-              </Link>
-            ))}
+        {newest && (
+          <section className="continue">
+            <h2 className="section-head mono">Continue reading</h2>
+            <Link to={articlePath(newest)} className="continue-card">
+              <span className="mono card-meta">
+                {newest.seriesTitle} · Part {pad2(newest.part)}
+              </span>
+              <h3>{newest.title}</h3>
+              <p className="continue-dek">{newest.dek}</p>
+              <span className="mono card-foot">
+                {formatDate(newest.date)} · {newest.readMinutes} min
+              </span>
+            </Link>
+          </section>
+        )}
+
+        <section className="start-here">
+          <h2 className="section-head mono">Start here</h2>
+          <div className="start-grid">
+            {series.map((item) => {
+              const first = partsOf(item.slug)[0];
+              if (!first) return null;
+              return (
+                <Link key={item.slug} to={articlePath(first)} className="card">
+                  <span className="mono card-meta">
+                    {item.tag} · {item.title}
+                  </span>
+                  <h3 className="card-title">{first.title}</h3>
+                  <p className="card-dek">{item.blurb}</p>
+                  <span className="mono card-foot">Part {pad2(first.part)} · Start here →</span>
+                </Link>
+              );
+            })}
           </div>
         </section>
 
@@ -133,6 +198,45 @@ export function Home() {
       <SiteFooter />
     </div>
   );
+}
+
+/** Decorative WebGL: after idle, and only for a fine pointer on a wide viewport.
+ *  Reduced motion stays off. The server snapshot is off so prerender stays static. */
+function useHeroEffect(): boolean {
+  const reduceMotion = useSyncExternalStore(subscribeMotion, prefersReducedMotion, () => true);
+  const capable = useSyncExternalStore(subscribeCapable, isCapable, () => false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (reduceMotion || !capable) return;
+    const win = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (win.requestIdleCallback) {
+      const id = win.requestIdleCallback(() => setReady(true), { timeout: 2000 });
+      return () => win.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(() => setReady(true), 1);
+    return () => window.clearTimeout(id);
+  }, [reduceMotion, capable]);
+
+  return !reduceMotion && capable && ready;
+}
+
+function subscribeCapable(onStoreChange: () => void) {
+  const fine = window.matchMedia("(pointer: fine)");
+  const wide = window.matchMedia("(min-width: 900px)");
+  fine.addEventListener("change", onStoreChange);
+  wide.addEventListener("change", onStoreChange);
+  return () => {
+    fine.removeEventListener("change", onStoreChange);
+    wide.removeEventListener("change", onStoreChange);
+  };
+}
+
+function isCapable() {
+  return window.matchMedia("(pointer: fine)").matches && window.matchMedia("(min-width: 900px)").matches;
 }
 
 function subscribeDark(onStoreChange: () => void) {

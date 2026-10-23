@@ -8,6 +8,7 @@ import { NotFound } from "./pages/NotFound";
 import { Series } from "./pages/Series";
 import { SeriesIndex } from "./pages/SeriesIndex";
 
+import "./styles/fonts.css";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/home.css";
@@ -36,15 +37,36 @@ export function App() {
   );
 }
 
-/** New page, top of the page — unless the URL points at a heading. */
+/** New page, top of the page — unless the URL points at a heading.
+ *  Article headings arrive with the body chunk, so a missing target is retried
+ *  until it exists (Article also scrolls once that chunk commits). */
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
-    if (hash) {
-      document.getElementById(hash.slice(1))?.scrollIntoView();
+    if (!hash) {
+      window.scrollTo(0, 0);
       return;
     }
-    window.scrollTo(0, 0);
+    const raw = hash.slice(1);
+    let id = raw;
+    try {
+      id = decodeURIComponent(raw);
+    } catch {
+      id = raw;
+    }
+    let frames = 0;
+    let raf = 0;
+    const tick = () => {
+      const target = document.getElementById(id);
+      if (target) {
+        target.scrollIntoView();
+        return;
+      }
+      frames += 1;
+      if (frames < 90) raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(raf);
   }, [pathname, hash]);
   return null;
 }
