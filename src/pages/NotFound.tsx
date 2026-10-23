@@ -5,7 +5,7 @@ import { articlePath, articles, pad2 } from "../lib/content";
 import { usePageMeta } from "../lib/meta";
 
 export function NotFound() {
-  usePageMeta({ title: "Not found — Shogol", description: "That page does not exist." });
+  usePageMeta({ title: "Not found — Shogol", description: "That page does not exist.", noindex: true });
 
   return (
     <>

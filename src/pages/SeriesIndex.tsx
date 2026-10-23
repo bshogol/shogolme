@@ -9,7 +9,7 @@ import { usePageMeta } from "../lib/meta";
 export function SeriesIndex() {
   usePageMeta({
     title: "All series — Shogol",
-    description: `Every series and every article on shogol.me — ${totals.articles} articles across ${totals.series} series.`,
+    description: `Long-form series on AI, Go, and philosophy by Boris Shogol — ${totals.articles} articles across ${totals.series} series.`,
     path: "/series",
   });
 

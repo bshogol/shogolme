@@ -11,9 +11,10 @@ export function Series() {
   const parts = partsOf(slug);
 
   usePageMeta({
-    title: series ? `${series.title} — Shogol` : "Series not found — Shogol",
-    description: series?.blurb ?? "",
-    path: seriesPath(slug),
+    title: series ? `${series.title} — Shogol` : "Not found — Shogol",
+    description: series?.blurb || "That page does not exist.",
+    path: series ? seriesPath(slug) : undefined,
+    noindex: !series,
   });
 
   if (!series) return <NotFound />;

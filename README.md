@@ -23,8 +23,9 @@ posts/<series>/NN-slug.html   THE CONTENT. Hand-written article HTML — still t
 src/content/registry.json     THE MANIFEST. Every series + every post (date, part, category, title, dek).
 scripts/gen-content.mjs       Build step: lifts each .prose block out of the HTML, ids the headings,
                               highlights code, and writes src/content/generated/ (gitignored).
-scripts/prerender.mjs         Build step: renders all 30 routes to static HTML with real <title>,
-                              meta description and canonical link.
+                              Prints the article count.
+scripts/prerender.mjs         Build step: renders every route to static HTML with real <title>,
+                              meta description and canonical link. Prints the page count.
 src/pages/                    Home · SeriesIndex (/series) · Series (/series/:slug) · Article · NotFound
 src/components/               SiteHeader (64px bar + ⌘K palette) · SiteFooter · SeriesDirectory · ArticleBody
 src/styles/                   tokens · base (shell) · home (marketing) · wiki (docs) · code
