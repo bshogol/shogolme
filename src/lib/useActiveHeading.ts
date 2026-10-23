@@ -5,7 +5,7 @@ import type { Heading } from "./content";
  *  observer only reports headings inside its band, so nothing is highlighted
  *  while you read a long section. The last heading above a reading line at
  *  y=96 wins, and the final heading pins once the page is scrolled out. */
-export function useActiveHeading(headings: Heading[]): string {
+export function useActiveHeading(headings: Heading[], ready = true): string {
   const [active, setActive] = useState(headings[0]?.id ?? "");
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export function useActiveHeading(headings: Heading[]): string {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, [headings]);
+  }, [headings, ready]);
 
   return active;
 }
