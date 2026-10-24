@@ -33,10 +33,7 @@ export function SiteHeader({ fullBleed = false }: { fullBleed?: boolean }) {
         <div className={`bar-in${fullBleed ? " bar-in--wide" : ""}`}>
           <div className="bar-left">
             <Link className="brand" to="/" onClick={() => setMenuOpen(false)}>
-              <span className="brand-mark" aria-hidden="true">
-                S
-              </span>
-              <span className="brand-word">shogol</span>
+              shogol
             </Link>
             {/* One "Series" entry, not one per series: the bar was already
                 crowded at three and the list only grows. */}

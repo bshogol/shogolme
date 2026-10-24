@@ -7,6 +7,10 @@ Design language: **dflux frontend**. Two scopes, deliberately different:
 
 - **Site shell** (home, series, 404) — marketing scope: pure white/black ground,
   hairline rules, blue only as a pointer (eyebrow dot, focus rings, hover ink).
+  The home hero sits on a slow field of the same blue and neutral mist. It is a
+  small WebGL shader with no graphics library: it pauses offscreen and when the
+  tab is hidden, and it stays a static wash under `prefers-reduced-motion`,
+  save-data, or when WebGL is missing.
 - **Article pages** — docs scope: one neutral grey ramp all the way down, no
   brand hue at all. Sticky series rail on the left, article in the middle, "on
   this page" outline on the right. Colour appears only where colour is the
@@ -31,10 +35,12 @@ src/components/               SiteHeader (64px bar + ⌘K palette) · SiteFooter
 src/styles/                   tokens · base (shell) · home (marketing) · wiki (docs) · code
 ```
 
-The home page is a **numbered directory** of series, each previewing its first
-six parts; `/series` is the same directory with every part listed. Neither the
-top bar nor the home page grows a row per article as series accumulate — the
-bar carries one `Series` entry, and the directory caps each preview.
+The home page is a short statement, a search field, one continue link to the
+newest article, then a **numbered directory** of series, each previewing its
+first six parts. `/series` is the same directory with every part listed.
+Neither the top bar nor the home page grows a row per article as series
+accumulate — the bar carries one `Series` entry, and the directory caps each
+preview.
 
 The article HTML in `posts/` is an input, not a served page: the generator reads
 the `.prose` block and the app supplies all chrome. The old per-post `<head>`,
