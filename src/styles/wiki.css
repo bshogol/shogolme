@@ -56,7 +56,7 @@
 }
 
 .rail-in {
-  padding: 24px 12px 40px 24px;
+  padding: 32px 20px 48px 24px;
 }
 
 .rail-series {
@@ -98,23 +98,21 @@
   gap: 8px;
   align-items: baseline;
   min-height: 32px;
-  padding: 6px 8px;
-  border-radius: 10px;
+  padding: 7px 8px 7px 12px;
   font-size: 13px;
   font-weight: 500;
   color: var(--d-ink-muted);
-  transition: background var(--dur-fast) var(--ease-beat), color var(--dur-fast) var(--ease-beat);
+  transition: color var(--dur-fast) var(--ease-beat);
 }
 
 .rail-row:hover {
   color: var(--d-ink-strong);
-  background: var(--d-muted);
 }
 
-/* The one filled row in the whole page: it is what says "you are here". */
+/* A hairline, not a filled chip: the current part is the only marked row. */
 .rail-row.is-current {
-  background: var(--d-nav-active);
   color: var(--d-nav-active-fg);
+  box-shadow: inset 2px 0 0 var(--d-ink-strong);
 }
 
 .rail-num {
@@ -124,7 +122,6 @@
 
 .rail-row.is-current .rail-num {
   color: inherit;
-  opacity: 0.7;
 }
 
 /* ---- article column ---------------------------------------------------- */
@@ -136,7 +133,7 @@
 .wiki-col {
   max-width: var(--col);
   margin: 0 auto;
-  padding: 32px 40px 0;
+  padding: 48px 48px 0;
 }
 
 .art-crumbs {
@@ -167,14 +164,13 @@
 }
 
 .art-head {
-  padding: 24px 0 28px;
-  border-bottom: 1px solid var(--d-border);
+  padding: 32px 0 8px;
 }
 
 .art-head h1 {
-  font-size: 48px;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  font-size: clamp(2.15rem, 4vw, 2.75rem);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
   color: var(--d-ink-strong);
 }
 
@@ -578,14 +574,14 @@
 .art-pn {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 48px 0 0;
-  padding-top: 32px;
+  gap: 24px 48px;
+  margin: 56px 0 0;
+  padding-top: 28px;
   border-top: 1px solid var(--d-border);
 }
 
 .art-related {
-  margin: 28px 0 72px;
+  margin: 40px 0 80px;
 }
 
 .wiki-col > .art-pn:last-child {
@@ -603,20 +599,19 @@
 .art-related-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 8px 48px;
 }
 
 .pn-card {
   display: grid;
   gap: 6px;
-  padding: 16px 18px;
-  border: 1px solid var(--d-border);
-  border-radius: 12px;
-  transition: border-color var(--dur-base) var(--ease-beat);
+  padding: 4px 0;
 }
 
-.pn-card:hover {
-  border-color: var(--d-border-strong);
+.pn-card:hover .pn-title {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 .pn-card--next {
@@ -624,8 +619,7 @@
 }
 
 .pn-card--empty {
-  border-style: dashed;
-  opacity: 0.4;
+  visibility: hidden;
 }
 
 .pn-k {
@@ -643,7 +637,7 @@
 }
 
 /* ---- outline ----------------------------------------------------------- */
-/* Plain text, no pills: a filled row already means "this page" in the rail. */
+/* Plain text. Weight marks the heading in view; the rail marks the part. */
 
 .outline-in {
   padding: 32px 24px 40px 16px;
@@ -671,6 +665,10 @@
   color: var(--d-ink-strong);
 }
 
+.outline-row.is-active {
+  font-weight: 500;
+}
+
 .outline-row.lvl-3 {
   padding-left: 12px;
 }
@@ -694,10 +692,8 @@
 
 .page-outline {
   display: none;
-  margin: 20px 0 0;
-  border: 1px solid var(--d-border);
-  border-radius: 12px;
-  background: var(--d-muted);
+  margin: 28px 0 0;
+  border-top: 1px solid var(--d-border);
 }
 
 .page-outline summary {
@@ -762,13 +758,13 @@
     display: inline-block;
   }
   .wiki-col {
-    padding: 24px 20px 0;
+    padding: 32px 20px 0;
   }
 }
 
 @media (max-width: 640px) {
   .art-head h1 {
-    font-size: 34px;
+    font-size: 2rem;
   }
   /* The series name wraps the crumb row onto three lines and the drawer names
      it anyway. */
@@ -785,6 +781,9 @@
   }
   .pn-card--next {
     text-align: left;
+  }
+  .pn-card--empty {
+    display: none;
   }
   .prose .diagram {
     padding: 16px;

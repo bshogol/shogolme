@@ -4,18 +4,19 @@ import { SearchIcon, SiteHeader } from "../components/SiteHeader";
 import { SeriesDirectory } from "../components/SeriesDirectory";
 import { SiteFooter } from "../components/SiteFooter";
 import { onComboKeyDown } from "../lib/combo";
-import { articlePath, articles, formatDate, pad2, partsOf, series, totals } from "../lib/content";
+import { articlePath, articles, formatDate, pad2, series, totals } from "../lib/content";
 import { DEFAULT_TITLE, SITE_DESCRIPTION, usePageMeta } from "../lib/meta";
 import { search } from "../lib/search";
 
-const PixelBlast = lazy(() => import("../components/PixelBlast"));
+const HeroField = lazy(() => import("../components/HeroField"));
 
 export function Home() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const hits = useMemo(() => search(query, 10), [query]);
   const newest = articles[0];
-  const showEffect = useHeroEffect();
+  const live = useHeroMotion();
+  const dark = useDark();
   const searching = query.trim().length > 0;
   const listId = "home-search-list";
   const activeId = searching && hits[active] ? `home-search-opt-${active}` : undefined;
@@ -26,28 +27,15 @@ export function Home() {
     path: "/",
   });
 
-  const color = useSyncExternalStore(subscribeDark, darkBlue, () => "#2563eb");
-
   return (
     <div className="home-shell">
-      {showEffect && (
-        <div className="hero-bg" aria-hidden="true">
+      <div className="hero-bg" aria-hidden="true">
+        {live && (
           <Suspense fallback={null}>
-            <PixelBlast
-              variant="square"
-              pixelSize={4}
-              color={color}
-              patternScale={2}
-              patternDensity={1}
-              enableRipples
-              speed={0.5}
-              edgeFade={0.35}
-              transparent
-              autoPauseOffscreen
-            />
+            <HeroField dark={dark} />
           </Suspense>
-        </div>
-      )}
+        )}
+      </div>
       <SiteHeader />
       <main className="home" id="content">
         <section className="hero">
@@ -55,7 +43,7 @@ export function Home() {
             <span className="eyebrow-dot" aria-hidden="true" />
             shogol.me
           </p>
-          <h1 className="hero-title hero-title--plain">Long-form series on AI, Go, and philosophy by Boris Shogol.</h1>
+          <h1 className="hero-title hero-title--plain">Long-form series on AI, Go, and philosophy.</h1>
 
           <div className="hero-search">
             <SearchIcon />
@@ -147,51 +135,26 @@ export function Home() {
           )}
         </section>
 
-        {newest && (
-          <section className="continue">
-            <h2 className="section-head mono">Continue reading</h2>
-            <Link to={articlePath(newest)} className="continue-card">
-              <span className="mono card-meta">
-                {newest.seriesTitle} · Part {pad2(newest.part)}
-              </span>
-              <h3>{newest.title}</h3>
-              <p className="continue-dek">{newest.dek}</p>
-              <span className="mono card-foot">
-                {formatDate(newest.date)} · {newest.readMinutes} min
+        <section className="reading" aria-label="Reading">
+          {newest && (
+            <Link to={articlePath(newest)} className="continue-link">
+              <span className="mono continue-kicker">Continue</span>
+              <span className="continue-body">
+                <span className="continue-title">{newest.title}</span>
+                <span className="mono continue-meta">
+                  {newest.seriesTitle} · Part {pad2(newest.part)} · {newest.readMinutes} min
+                </span>
               </span>
             </Link>
-          </section>
-        )}
+          )}
 
-        <section className="start-here">
-          <h2 className="section-head mono">Start here</h2>
-          <div className="start-grid">
-            {series.map((item) => {
-              const first = partsOf(item.slug)[0];
-              if (!first) return null;
-              return (
-                <Link key={item.slug} to={articlePath(first)} className="card">
-                  <span className="mono card-meta">
-                    {item.tag} · {item.title}
-                  </span>
-                  <h3 className="card-title">{first.title}</h3>
-                  <p className="card-dek">{item.blurb}</p>
-                  <span className="mono card-foot">Part {pad2(first.part)} · Start here →</span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="index">
           <div className="section-bar">
-            <h2 className="section-head mono">The directory</h2>
+            <h2 className="section-head mono">Series</h2>
             <Link className="mono section-link" to="/series">
-              All series →
+              All series
             </Link>
           </div>
-          {/* Capped at six parts each: the home page has to stay one screen of
-              scanning however many series accumulate. */}
+          {/* Capped at six parts each: the home page stays scannable as series grow. */}
           <SeriesDirectory series={series} preview={6} />
         </section>
       </main>
@@ -200,53 +163,43 @@ export function Home() {
   );
 }
 
-/** Decorative WebGL: after idle, and only for a fine pointer on a wide viewport.
- *  Reduced motion stays off. The server snapshot is off so prerender stays static. */
-function useHeroEffect(): boolean {
+/** Decorative WebGL after idle. Reduced motion, save-data, and the server
+ *  snapshot stay on the static wash so prerender and constrained clients
+ *  never start a canvas. */
+function useHeroMotion(): boolean {
   const reduceMotion = useSyncExternalStore(subscribeMotion, prefersReducedMotion, () => true);
-  const capable = useSyncExternalStore(subscribeCapable, isCapable, () => false);
+  const saveData = useSyncExternalStore(subscribeConnection, prefersSaveData, () => false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (reduceMotion || !capable) return;
+    if (reduceMotion || saveData) return;
     const win = window as Window & {
       requestIdleCallback?: (callback: IdleRequestCallback, options?: { timeout: number }) => number;
       cancelIdleCallback?: (handle: number) => void;
     };
     if (win.requestIdleCallback) {
-      const id = win.requestIdleCallback(() => setReady(true), { timeout: 2000 });
+      const id = win.requestIdleCallback(() => setReady(true), { timeout: 1200 });
       return () => win.cancelIdleCallback?.(id);
     }
     const id = window.setTimeout(() => setReady(true), 1);
     return () => window.clearTimeout(id);
-  }, [reduceMotion, capable]);
+  }, [reduceMotion, saveData]);
 
-  return !reduceMotion && capable && ready;
+  return !reduceMotion && !saveData && ready;
 }
 
-function subscribeCapable(onStoreChange: () => void) {
-  const fine = window.matchMedia("(pointer: fine)");
-  const wide = window.matchMedia("(min-width: 900px)");
-  fine.addEventListener("change", onStoreChange);
-  wide.addEventListener("change", onStoreChange);
-  return () => {
-    fine.removeEventListener("change", onStoreChange);
-    wide.removeEventListener("change", onStoreChange);
-  };
+function useDark(): boolean {
+  return useSyncExternalStore(subscribeTheme, readDark, () => false);
 }
 
-function isCapable() {
-  return window.matchMedia("(pointer: fine)").matches && window.matchMedia("(min-width: 900px)").matches;
+function subscribeTheme(onStoreChange: () => void) {
+  const observer = new MutationObserver(onStoreChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
 }
 
-function subscribeDark(onStoreChange: () => void) {
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-  media.addEventListener("change", onStoreChange);
-  return () => media.removeEventListener("change", onStoreChange);
-}
-
-function darkBlue() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "#3b82f6" : "#2563eb";
+function readDark() {
+  return document.documentElement.getAttribute("data-theme") === "dark";
 }
 
 function subscribeMotion(onStoreChange: () => void) {
@@ -257,4 +210,24 @@ function subscribeMotion(onStoreChange: () => void) {
 
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function subscribeConnection(onStoreChange: () => void) {
+  const connection = navigatorConnection();
+  connection?.addEventListener?.("change", onStoreChange);
+  return () => connection?.removeEventListener?.("change", onStoreChange);
+}
+
+function prefersSaveData() {
+  return Boolean(navigatorConnection()?.saveData);
+}
+
+type NetworkInformation = {
+  saveData?: boolean;
+  addEventListener?: (type: string, callback: () => void) => void;
+  removeEventListener?: (type: string, callback: () => void) => void;
+};
+
+function navigatorConnection(): NetworkInformation | undefined {
+  return (navigator as Navigator & { connection?: NetworkInformation }).connection;
 }

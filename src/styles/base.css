@@ -176,36 +176,21 @@ kbd {
 }
 
 .bar-left {
-  gap: 28px;
+  gap: 32px;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
   font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-}
-
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: var(--fg);
-  color: var(--bg);
-  font-family: var(--font-mono);
-  font-size: 13px;
   font-weight: 500;
+  letter-spacing: -0.03em;
 }
 
 .bar-nav {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 24px;
 }
 
 .bar-nav a {
@@ -228,15 +213,15 @@ kbd {
   gap: 8px;
   height: 32px;
   padding: 0 8px 0 10px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid transparent;
   border-radius: 9999px;
   color: var(--text-3);
   font-size: 13.5px;
-  transition: border-color var(--dur-fast) var(--ease-beat), color var(--dur-fast) var(--ease-beat);
+  transition: background var(--dur-fast) var(--ease-beat), color var(--dur-fast) var(--ease-beat);
 }
 
 .search-trigger:hover {
-  border-color: var(--border-hover);
+  background: var(--panel-2);
   color: var(--fg);
 }
 
@@ -263,7 +248,6 @@ kbd {
   padding: 12px 2px;
   font-size: 16px;
   color: var(--text-2);
-  border-bottom: 1px solid var(--border);
 }
 
 .bar-drawer-sub {
@@ -408,22 +392,22 @@ kbd {
 
 .foot {
   border-top: 1px solid var(--border);
-  margin-top: 96px;
+  margin-top: 112px;
 }
 
 .foot-in {
   max-width: var(--container);
   margin: 0 auto;
-  padding: 48px var(--gutter) 32px;
+  padding: 48px var(--gutter) 24px;
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
-  gap: 32px;
+  gap: 32px 48px;
 }
 
 .foot-brand {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  display: grid;
+  gap: 4px;
+  align-content: start;
 }
 
 .foot-name {
@@ -460,15 +444,13 @@ kbd {
 .foot-rule {
   max-width: var(--container);
   margin: 0 auto;
-  padding: 16px var(--gutter) 40px;
+  padding: 8px var(--gutter) 48px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px 24px;
   justify-content: space-between;
-  border-top: 1px solid var(--border);
-  font-size: 11.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  letter-spacing: 0.04em;
   color: var(--text-4);
 }
 

@@ -6,13 +6,8 @@ export function SiteFooter() {
     <footer className="foot">
       <div className="foot-in">
         <div className="foot-brand">
-          <span className="brand-mark" aria-hidden="true">
-            S
-          </span>
-          <div>
-            <p className="foot-name">shogol</p>
-            <p className="foot-tag">Long-form series on AI, Go, and philosophy.</p>
-          </div>
+          <p className="foot-name">shogol</p>
+          <p className="foot-tag">Long-form series on AI, Go, and philosophy.</p>
         </div>
 
         <nav className="foot-links" aria-label="Series">
@@ -32,7 +27,7 @@ export function SiteFooter() {
       </div>
 
       <div className="foot-rule mono">
-        <span>© {new Date().getFullYear()} Shogol</span>
+        <span>© {new Date().getFullYear()} Boris Shogol</span>
         <span>
           {totals.articles} articles · {totals.series} series
         </span>
